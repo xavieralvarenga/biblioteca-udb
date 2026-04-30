@@ -1,0 +1,39 @@
+plugins {
+    id 'java'           // Habilita el soporte para compilar, probar y empaquetar código Java.
+    id 'application'    // Permite ejecutar la app directamente desde Gradle y crear distribuciones.
+}
+
+group 'com.biblioteca'  // Identificador único de tu organización o proyecto.
+version '1.0'  // Versión actual del desarrollo.
+
+repositories {
+    mavenCentral()      // Indica a Gradle que descargue las librerías desde el repositorio central de Maven.
+}
+
+dependencies {
+    /** + INTERFAZ GRÁFICA (Swing con FlatLaf) */
+    implementation 'com.formdev:flatlaf:3.0'
+
+    /** + BASE DE DATOS (MySQL) */
+    implementation 'mysql:mysql-connector-java:8.0.33'
+    implementation 'com.zaxxer:HikariCP:5.0.1'
+
+    /** + SEGURIDAD (BCrypt) */
+    implementation 'org.mindrot:jbcrypt:0.4'
+
+    /** + LOMBOK (Productividad) */
+    compileOnly 'org.projectlombok:lombok:1.18.28'
+    annotationProcessor 'org.projectlombok:lombok:1.18.28'
+
+    /** + LOGGING (Registro de eventos) */
+    implementation 'org.slf4j:slf4j-api:2.0.7'
+    implementation 'org.slf4j:slf4j-simple:2.0.7'
+
+    /** + REPORTES */
+    implementation 'com.itextpdf:itext7-core:7.2.5'
+}
+
+application {
+    // Define cuál es la clase que contiene el método public static void main(String[] args)
+    mainClass = 'com.biblioteca.Main'
+}
