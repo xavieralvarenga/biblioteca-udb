@@ -16,7 +16,10 @@ dependencies {
 
     /** + BASE DE DATOS (MySQL) */
     implementation 'mysql:mysql-connector-java:8.0.33'
-    implementation 'com.zaxxer:HikariCP:5.0.1'
+    implementation 'com.zaxxer:HikariCP:5.0.1' //Pool de conexiones para mejorar el rendimiento al acceder a la base de datos.
+
+    // Recomendado: SLF4J para logs de Hikari
+    implementation 'org.slf4j:slf4j-simple:2.0.12'
 
     /** + SEGURIDAD (BCrypt) */
     implementation 'org.mindrot:jbcrypt:0.4'
