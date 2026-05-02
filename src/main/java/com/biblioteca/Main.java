@@ -32,10 +32,5 @@ public class Main {
                 System.err.println("Causa: " + e.getMessage());
                 // Aquí es donde el manejo de SQLExceptions mencionado en image_0443cb.png es vital
             }*/
-        }
     }
-<<<<<<< HEAD
-
 }
-=======
->>>>>>> 8e2e68b (feat(db): agregar Hikari pool y db.properties)
