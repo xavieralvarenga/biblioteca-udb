@@ -34,6 +34,17 @@ dependencies {
 
     /** + REPORTES */
     implementation 'com.itextpdf:itext7-core:7.2.5'
+
+    // JPA / HIBERNATE: Para mapear tus clases a la base de datos
+    // Es la implementación que entiende las anotaciones @Entity y @Table
+    implementation 'org.hibernate.orm:hibernate-core:6.4.1.Final'
+
+    // 1. La API de Validación (Define las anotaciones como @NotNull, @NotBlank)
+    implementation 'jakarta.validation:jakarta.validation-api:3.0.2'
+
+    // 2. La Implementación de Referencia (Hibernate Validator)
+    // La API sola es solo un contrato; esta librería es la que "hace el trabajo" de validar.
+    implementation 'org.hibernate.validator:hibernate-validator:8.0.1.Final'
 }
 
 application {
