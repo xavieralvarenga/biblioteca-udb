@@ -1,7 +1,10 @@
 package com.biblioteca;
 
 import com.biblioteca.config.DatabaseConnection;
+import com.biblioteca.view.LoginFrame;
+import com.formdev.flatlaf.FlatLightLaf;
 
+import javax.swing.*;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -9,6 +12,18 @@ import java.sql.Statement;
 
 public class Main {
     public static void main(String[] args) {
+        try {
+            FlatLightLaf.setup();
+            UIManager.put("Button.arc", 10);
+            UIManager.put("TextComponent.arc", 10);
+        } catch (Exception ex) {
+            System.err.println("Error al inicializar FlatLaf: " + ex.getMessage());
+        }
+
+        // 2. Iniciar la aplicación mostrando la ventana de Login
+        SwingUtilities.invokeLater(() -> {
+            new LoginFrame().setVisible(true);
+        });
             /*System.out.println("Iniciando prueba de conexión...");
 
             // Intentamos obtener una conexión de nuestra clase DatabaseConnection
