@@ -24,7 +24,7 @@ public class LoginFrame extends JFrame {
         lblTitulo.setBounds(0, 40, 400, 40);
         mainPanel.add(lblTitulo);
 
-        // --- BANNER DE NOTIFICACIONES (Oculto por defecto) ---
+        //Banner de notificaciones
         lblNotificacion = new JLabel("", SwingConstants.CENTER);
         lblNotificacion.setBounds(50, 85, 300, 25);
         lblNotificacion.setOpaque(true); // Para poder pintarle el fondo
@@ -55,9 +55,7 @@ public class LoginFrame extends JFrame {
 
         add(mainPanel);
 
-        // --- LÓGICA DE NAVEGACIÓN ---
-        // --- LÓGICA DE NAVEGACIÓN EN LoginFrame.java ---
-        // --- LÓGICA DE NAVEGACIÓN ---
+        //Navegación
         btnIngresar.addActionListener(e -> {
             String carnet = txtUsuario.getText().trim();
             String password = new String(txtPassword.getPassword());
@@ -71,19 +69,24 @@ public class LoginFrame extends JFrame {
                 com.biblioteca.service.UsuarioService authService = new com.biblioteca.service.UsuarioService();
                 com.biblioteca.model.Usuario usuarioLogueado = authService.login(carnet, password);
 
-                // ¡GUARDAMOS LA SESIÓN GLOBALMENTE!
+                // 1. Guardamos la sesión
                 com.biblioteca.util.SessionManager.getInstance().setUsuarioLogueado(usuarioLogueado);
 
-                this.dispose(); // Destruye la ventana del Login
-                new MainFrame().setVisible(true);
+                MainFrame ventanaPrincipal = new MainFrame();
+                ventanaPrincipal.setVisible(true);
+                this.dispose();
 
             } catch (Exception ex) {
-                // Si el error es de inactividad, lo pintamos naranja. Si es otro, rojo oscuro.
-                Color colorFondo = ex.getMessage().contains("inactivo")
-                        ? new Color(253, 126, 20)  // Naranja
-                        : new Color(220, 53, 69);  // Rojo (Peligro)
+                // Seguro de vida: Si por alguna razón el error no tiene mensaje, evitamos que la app colapse
+                String mensajeError = ex.getMessage() != null ? ex.getMessage() : "Error interno del sistema.";
 
-                mostrarNotificacion("❌ " + ex.getMessage(), colorFondo, Color.WHITE);
+                Color colorFondo = mensajeError.contains("inactivo")
+                        ? new Color(253, 126, 20)
+                        : new Color(220, 53, 69);
+
+                mostrarNotificacion("❌ " + mensajeError, colorFondo, Color.WHITE);
+
+                ex.printStackTrace();
             }
         });
     }

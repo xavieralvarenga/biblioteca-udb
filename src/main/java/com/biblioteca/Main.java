@@ -19,8 +19,6 @@ public class Main {
         } catch (Exception ex) {
             System.err.println("Error al inicializar FlatLaf: " + ex.getMessage());
         }
-
-        // 2. Iniciar la aplicación mostrando la ventana de Login
         SwingUtilities.invokeLater(() -> {
             new LoginFrame().setVisible(true);
         });

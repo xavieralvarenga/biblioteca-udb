@@ -22,7 +22,6 @@ public class PanelInventario extends JPanel {
         setBackground(Color.WHITE);
         setBorder(new EmptyBorder(20, 20, 20, 20)); // Márgenes internos
 
-        // 1. TÍTULO Y BARRA DE BÚSQUEDA (Norte)
         JPanel panelNorte = new JPanel(new BorderLayout(10, 10));
         panelNorte.setBackground(Color.WHITE);
 
@@ -49,14 +48,12 @@ public class PanelInventario extends JPanel {
 
         panelNorte.add(panelBusqueda, BorderLayout.CENTER);
         add(panelNorte, BorderLayout.NORTH);
-
-        // 2. TABLA DE DATOS (Centro)
-        // Definimos las columnas basados en tu tabla Documento
+        //Tabla de datos
         String[] columnas = {"ID", "Tipo", "Título", "Autor", "Ubicación", "Estado"};
         modeloTabla = new DefaultTableModel(columnas, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
-                return false; // Evita que editen dando doble clic en la celda
+                return false;
             }
         };
 
@@ -73,7 +70,7 @@ public class PanelInventario extends JPanel {
         JScrollPane scrollPane = new JScrollPane(tablaDocumentos);
         add(scrollPane, BorderLayout.CENTER);
 
-        // 3. BOTONES DE ACCIÓN (Sur)
+        // 3. botones
         JPanel panelSur = new JPanel(new FlowLayout(FlowLayout.RIGHT, 15, 10));
         panelSur.setBackground(Color.WHITE);
 
@@ -88,12 +85,7 @@ public class PanelInventario extends JPanel {
         panelSur.add(btnEliminar);
 
         add(panelSur, BorderLayout.SOUTH);
-
-        // --- DATOS DE PRUEBA (MOCK DATA) ---
-        // Esto es para que veas cómo luce antes de conectarlo a la Base de Datos
         cargarDatosDePrueba();
-
-        // --- EVENTOS BÁSICOS ---
         configurarEventos();
     }
 
@@ -116,11 +108,7 @@ public class PanelInventario extends JPanel {
 
     private void configurarEventos() {
         btnNuevo.addActionListener(e -> {
-            // Obtenemos la ventana principal para que el popup se centre en ella
             Window ventanaPadre = SwingUtilities.getWindowAncestor(this);
-
-            // Instanciamos y mostramos el nuevo diálogo
-            // (Si metiste la clase en una carpeta forms, recuerda importar com.biblioteca.view.forms.DialogNuevoDocumento)
             DialogNuevoDocumento dialog = new DialogNuevoDocumento(ventanaPadre);
             dialog.setVisible(true);
         });
@@ -130,7 +118,6 @@ public class PanelInventario extends JPanel {
             if (filaSeleccionada == -1) {
                 JOptionPane.showMessageDialog(this, "Por favor, selecciona un documento de la tabla primero.", "Advertencia", JOptionPane.WARNING_MESSAGE);
             } else {
-                // Obtenemos los datos de la fila seleccionada
                 String id = (String) modeloTabla.getValueAt(filaSeleccionada, 0);
                 String tipo = (String) modeloTabla.getValueAt(filaSeleccionada, 1);
                 String titulo = (String) modeloTabla.getValueAt(filaSeleccionada, 2);
@@ -138,7 +125,6 @@ public class PanelInventario extends JPanel {
                 String ubicacion = (String) modeloTabla.getValueAt(filaSeleccionada, 4);
                 String estado = (String) modeloTabla.getValueAt(filaSeleccionada, 5);
 
-                // Instanciamos el diálogo y le pasamos los datos
                 Window ventanaPadre = SwingUtilities.getWindowAncestor(this);
                 DialogDetalleDocumento dialogDetalle = new DialogDetalleDocumento(
                         ventanaPadre, id, tipo, titulo, autor, ubicacion, estado
