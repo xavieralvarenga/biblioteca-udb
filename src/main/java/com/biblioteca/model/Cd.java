@@ -22,4 +22,10 @@ public class Cd extends Documento {
     @Size(max = 100)
     @Column(name = "tipo_contenido", length = 100)
     private String tipoContenido;
+
+    public Cd(int idDocumento, int duracionMinutos, String tipoContenido) {
+        super();
+        this.duracionMinutos = duracionMinutos;
+        this.tipoContenido = tipoContenido;
+    }
 }

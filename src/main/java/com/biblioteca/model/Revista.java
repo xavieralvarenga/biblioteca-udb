@@ -27,4 +27,11 @@ public class Revista extends Documento {
     @Size(max = 50)
     @Column(name = "mes_publicacion", length = 50)
     private String mesPublicacion;
+
+    public Revista(int idDocumento, String issn, String volumen, String mesPublicacion) {
+        super();
+        this.issn = issn;
+        this.volumen = volumen;
+        this.mesPublicacion = mesPublicacion;
+    }
 }

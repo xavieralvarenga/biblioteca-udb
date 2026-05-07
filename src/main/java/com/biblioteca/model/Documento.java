@@ -10,7 +10,7 @@ import lombok.*;
 @Entity
 @Table(name = "Documento")
 @Inheritance(strategy = InheritanceType.JOINED) // Crea tablas separadas unidas por ID[cite: 1]
-public class Documento {
+public abstract class Documento {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -19,7 +19,7 @@ public class Documento {
     @NotNull(message = "El tipo de documento es obligatorio")
     @ManyToOne
     @JoinColumn(name = "id_tipo_doc", nullable = false)
-    private TipoDocumento tipoDocumento;
+    private int tipoDocumento;
 
     @NotBlank(message = "El título es obligatorio")
     @Column(nullable = false, length = 200)
@@ -37,4 +37,5 @@ public class Documento {
 
     @Column(length = 50)
     private String estado = "Disponible";
+
 }
