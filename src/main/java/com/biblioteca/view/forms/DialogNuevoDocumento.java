@@ -1,144 +1,151 @@
 package com.biblioteca.view.forms;
 
+import com.biblioteca.model.*;
+import com.biblioteca.service.IDocumentoService;
+import com.biblioteca.service.impl.DocumentoServiceImpl;
 import javax.swing.*;
-import javax.swing.border.EmptyBorder;
-import javax.swing.border.TitledBorder;
+import javax.swing.border.*;
 import java.awt.*;
+import java.sql.SQLException;
 
 public class DialogNuevoDocumento extends JDialog {
-
-    // Componentes Comunes
+    // Campos Comunes
     private JTextField txtTitulo, txtAutor, txtUbicacion, txtCodigoBarras;
     private JComboBox<String> cbxTipoDocumento;
 
-    // Magia para el cambio dinámico
-    private JPanel panelDetallesDinamico;
+    // Campos Específicos (Guardamos referencias para poder leer el texto luego)
+    private JTextField txtIsbn, txtEditorial, txtEdicion;
+    private JTextField txtIssn, txtVolumen, txtMes;
+    private JTextField txtDuracion, txtContenido;
+
     private CardLayout cardLayout;
+    private JPanel panelDetallesDinamico;
 
     public DialogNuevoDocumento(Window owner) {
         super(owner, "Registrar Nuevo Documento", ModalityType.APPLICATION_MODAL);
-        setSize(500, 600);
-        setLocationRelativeTo(owner);
-        setResizable(false);
+        initComponents();
+        configurarEventos();
+    }
+
+    private void initComponents() {
+        setSize(500, 650);
+        setLocationRelativeTo(null);
         setLayout(new BorderLayout(10, 10));
 
-        // Contenedor principal con padding
         JPanel mainPanel = new JPanel();
         mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
         mainPanel.setBorder(new EmptyBorder(20, 20, 20, 20));
         mainPanel.setBackground(Color.WHITE);
 
-        // 1. SECCIÓN: DATOS GENERALES (Común para todos)
+        // Sección General
         JPanel panelGeneral = new JPanel(new GridLayout(5, 2, 10, 15));
         panelGeneral.setBackground(Color.WHITE);
-        panelGeneral.setBorder(BorderFactory.createTitledBorder(
-                BorderFactory.createLineBorder(Color.LIGHT_GRAY),
-                "Datos Generales del Documento",
-                TitledBorder.LEFT, TitledBorder.TOP,
-                new Font("Segoe UI", Font.BOLD, 14), new Color(61, 90, 128)
-        ));
+        panelGeneral.setBorder(BorderFactory.createTitledBorder("Datos Generales"));
 
-        // Agregamos campos comunes
-        txtTitulo = agregarCampoFormulario(panelGeneral, "Título de la Obra *:");
-        txtAutor = agregarCampoFormulario(panelGeneral, "Autor / Creador *:");
-        txtUbicacion = agregarCampoFormulario(panelGeneral, "Ubicación Física:");
-        txtCodigoBarras = agregarCampoFormulario(panelGeneral, "Código de Barras (Obra):");
+        txtTitulo = crearCampo(panelGeneral, "Título *:");
+        txtAutor = crearCampo(panelGeneral, "Autor *:");
+        txtUbicacion = crearCampo(panelGeneral, "Ubicación:");
+        txtCodigoBarras = crearCampo(panelGeneral, "Cód. Barras:");
 
-        // El selector que hará la magia
-        panelGeneral.add(new JLabel(" Tipo de Documento *:"));
         cbxTipoDocumento = new JComboBox<>(new String[]{"Libro", "Revista", "CD"});
-        cbxTipoDocumento.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        panelGeneral.add(new JLabel(" Tipo:"));
         panelGeneral.add(cbxTipoDocumento);
-
         mainPanel.add(panelGeneral);
-        mainPanel.add(Box.createRigidArea(new Dimension(0, 15)));
 
-        // 2. SECCIÓN: DATOS ESPECÍFICOS (El CardLayout dinámico)
+        // Sección Dinámica
         cardLayout = new CardLayout();
         panelDetallesDinamico = new JPanel(cardLayout);
-        panelDetallesDinamico.setBackground(Color.WHITE);
-        panelDetallesDinamico.setBorder(BorderFactory.createTitledBorder(
-                BorderFactory.createLineBorder(Color.LIGHT_GRAY),
-                "Detalles Específicos",
-                TitledBorder.LEFT, TitledBorder.TOP,
-                new Font("Segoe UI", Font.BOLD, 14), new Color(41, 171, 135)
-        ));
 
-        // --- Panel para LIBRO ---
-        JPanel panelLibro = new JPanel(new GridLayout(3, 2, 10, 15));
-        panelLibro.setBackground(Color.WHITE);
-        agregarCampoFormulario(panelLibro, "ISBN:");
-        agregarCampoFormulario(panelLibro, "Editorial:");
-        agregarCampoFormulario(panelLibro, "Edición:");
+        // Paneles de detalles
+        JPanel pLibro = new JPanel(new GridLayout(3, 2, 10, 15));
+        txtIsbn = crearCampo(pLibro, "ISBN:");
+        txtEditorial = crearCampo(pLibro, "Editorial:");
+        txtEdicion = crearCampo(pLibro, "Edición:");
 
-        // --- Panel para REVISTA ---
-        JPanel panelRevista = new JPanel(new GridLayout(3, 2, 10, 15));
-        panelRevista.setBackground(Color.WHITE);
-        agregarCampoFormulario(panelRevista, "ISSN:");
-        agregarCampoFormulario(panelRevista, "Volumen:");
-        agregarCampoFormulario(panelRevista, "Mes de Publicación:");
+        JPanel pRevista = new JPanel(new GridLayout(3, 2, 10, 15));
+        txtIssn = crearCampo(pRevista, "ISSN:");
+        txtVolumen = crearCampo(pRevista, "Volumen:");
+        txtMes = crearCampo(pRevista, "Mes Pub:");
 
-        // --- Panel para CD ---
-        JPanel panelCD = new JPanel(new GridLayout(2, 2, 10, 15));
-        panelCD.setBackground(Color.WHITE);
-        agregarCampoFormulario(panelCD, "Duración (Minutos):");
-        agregarCampoFormulario(panelCD, "Tipo de Contenido:");
+        JPanel pCd = new JPanel(new GridLayout(2, 2, 10, 15));
+        txtDuracion = crearCampo(pCd, "Duración (min):");
+        txtContenido = crearCampo(pCd, "Contenido:");
 
-        // Añadimos las cartas al panel dinámico
-        panelDetallesDinamico.add(panelLibro, "Libro");
-        panelDetallesDinamico.add(panelRevista, "Revista");
-        panelDetallesDinamico.add(panelCD, "CD");
-
+        panelDetallesDinamico.add(pLibro, "Libro");
+        panelDetallesDinamico.add(pRevista, "Revista");
+        panelDetallesDinamico.add(pCd, "CD");
         mainPanel.add(panelDetallesDinamico);
 
         add(mainPanel, BorderLayout.CENTER);
 
-        // 3. SECCIÓN: BOTONES DE ACCIÓN (Sur)
-        JPanel panelBotones = new JPanel(new FlowLayout(FlowLayout.RIGHT, 15, 10));
-        panelBotones.setBackground(Color.WHITE);
-
-        JButton btnCancelar = new JButton("Cancelar");
-        btnCancelar.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        btnCancelar.setBackground(new Color(231, 111, 81));
-        btnCancelar.setForeground(Color.WHITE);
-
-        JButton btnGuardar = new JButton("Guardar Documento");
-        btnGuardar.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        btnGuardar.setBackground(new Color(61, 90, 128));
-        btnGuardar.setForeground(Color.WHITE);
-
-        panelBotones.add(btnCancelar);
-        panelBotones.add(btnGuardar);
-
-        add(panelBotones, BorderLayout.SOUTH);
-
-        // --- EVENTOS ---
-
-        // Evento que escucha el menú desplegable y cambia la "carta"
-        cbxTipoDocumento.addActionListener(e -> {
-            String tipoSeleccionado = (String) cbxTipoDocumento.getSelectedItem();
-            cardLayout.show(panelDetallesDinamico, tipoSeleccionado);
-        });
-
-        // Evento para cerrar la ventana
-        btnCancelar.addActionListener(e -> this.dispose());
-
-        // Evento de guardado (Solo visual por ahora)
-        btnGuardar.addActionListener(e -> {
-            JOptionPane.showMessageDialog(this, "Simulando el guardado en la base de datos...", "Éxito", JOptionPane.INFORMATION_MESSAGE);
-            this.dispose();
-        });
+        // Botones
+        JPanel pBotones = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JButton btnGuardar = new JButton("Guardar");
+        btnGuardar.addActionListener(e -> accionGuardar());
+        pBotones.add(btnGuardar);
+        add(pBotones, BorderLayout.SOUTH);
     }
 
-    // Método auxiliar para no repetir código creando etiquetas y campos de texto
-    private JTextField agregarCampoFormulario(JPanel panel, String textoEtiqueta) {
-        JLabel label = new JLabel(" " + textoEtiqueta);
-        label.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        JTextField textField = new JTextField();
-        textField.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+    private JTextField crearCampo(JPanel p, String label) {
+        p.add(new JLabel(label));
+        JTextField t = new JTextField();
+        p.add(t);
+        return t;
+    }
 
-        panel.add(label);
-        panel.add(textField);
-        return textField;
+    private void configurarEventos() {
+        cbxTipoDocumento.addActionListener(e -> cardLayout.show(panelDetallesDinamico, (String) cbxTipoDocumento.getSelectedItem()));
+    }
+
+    private void accionGuardar() {
+        try {
+            String tipo = (String) cbxTipoDocumento.getSelectedItem();
+            Documento d;
+
+            // Instanciación polimórfica según selección
+            if (tipo.equals("Libro")) {
+                Libro l = new Libro();
+                l.setIsbn(txtIsbn.getText());
+                l.setEditorial(txtEditorial.getText());
+                l.setEdicion(txtEdicion.getText());
+                l.setTipoDocumento(1);
+                d = l;
+            } else if (tipo.equals("Revista")) {
+                Revista r = new Revista();
+                r.setIssn(txtIssn.getText());
+                r.setVolumen(txtVolumen.getText());
+                r.setMesPublicacion(txtMes.getText());
+                r.setTipoDocumento(2);
+                d = r;
+            } else {
+                Cd c = new Cd();
+                c.setDuracionMinutos(Integer.parseInt(txtDuracion.getText().isEmpty() ? "0" : txtDuracion.getText()));
+                c.setTipoContenido(txtContenido.getText());
+                c.setTipoDocumento(3);
+                d = c;
+            }
+
+            // Datos comunes
+            d.setTitulo(txtTitulo.getText());
+            d.setAutor(txtAutor.getText());
+            d.setUbicacionFisica(txtUbicacion.getText());
+            d.setCodigoBarrasObra(txtCodigoBarras.getText());
+            d.setEstado("Disponible");
+
+            // Llamada al servicio manejando la excepción SQL
+            IDocumentoService service = new DocumentoServiceImpl();
+            if (service.registrarDocumento(d)) {
+                JOptionPane.showMessageDialog(this, "¡Documento guardado con éxito!", "Éxito", JOptionPane.INFORMATION_MESSAGE);
+                this.dispose();
+            } else {
+                JOptionPane.showMessageDialog(this, "Error: Título y Autor son obligatorios.", "Advertencia", JOptionPane.WARNING_MESSAGE);
+            }
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(this, "Error de base de datos: " + ex.getMessage(), "Error SQL", JOptionPane.ERROR_MESSAGE);
+        } catch (NumberFormatException ex) {
+            JOptionPane.showMessageDialog(this, "La duración debe ser un número válido.", "Error de Formato", JOptionPane.ERROR_MESSAGE);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Error inesperado: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
     }
 }

@@ -14,4 +14,17 @@ public class Libro extends Documento {
     private String isbn;
     private String editorial;
     private String edicion;
+
+    // 1. Agrega este constructor vacío
+    public Libro() {
+        super(); // Llama al constructor de Documento
+    }
+
+    // Constructor sin argumentos requerido por JPA
+    public Libro(int idDocumento, String isbn, String editorial, String edicion) {
+        super();
+        this.isbn = isbn;
+        this.editorial = editorial;
+        this.edicion = edicion;
+    }
 }

@@ -6,12 +6,13 @@ import com.biblioteca.view.panels.PanelUsuarios;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
+import java.sql.SQLException;
 
 public class MainFrame extends JFrame {
     private CardLayout cardLayout;
     private JPanel panelCentral;
 
-    public MainFrame() {
+    public MainFrame() throws SQLException {
         setTitle("Sistema de Mediateca - Panel de Administración");
         setSize(1000, 700);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
