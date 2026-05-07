@@ -77,9 +77,7 @@ public class MainFrame extends JFrame {
         lblBienvenida.setFont(new Font("Segoe UI", Font.BOLD, 36));
         panelBienvenida.add(lblBienvenida, BorderLayout.CENTER);
 
-        JPanel panelPrestamos = new JPanel();
-        panelPrestamos.setBackground(new Color(240, 240, 240));
-        panelPrestamos.add(new JLabel("Aquí irá la tabla de Préstamos"));
+        com.biblioteca.view.panels.PanelPrestamos panelPrestamos = new com.biblioteca.view.panels.PanelPrestamos();
         // --- PANTALLA 3: INVENTARIO ---
         // Importa com.biblioteca.view.panels.PanelInventario si te lo pide IntelliJ
         PanelInventario panelInventario = new PanelInventario();

@@ -84,7 +84,7 @@ public class UsuarioDAO {
     // Método para obtener TODOS los usuarios de la base de datos
     public List<Usuario> obtenerTodosLosUsuarios() {
         List<Usuario> listaUsuarios = new ArrayList<>();
-        // Consulta sin WHERE para traerlos a todos
+
         String sql = "SELECT u.ID_Usuario, u.Nombres, u.Apellidos, u.carnet_docente_alumno, " +
                 "u.password_hash, u.estado_mora, u.Estado, " +
                 "t.id_tipo, t.nombre_rol, t.max_libros_permitidos, t.max_dias_prestamo " +
@@ -97,14 +97,13 @@ public class UsuarioDAO {
              ResultSet rs = ps.executeQuery()) { // Al no tener parámetros (?), podemos ejecutarlo directo
 
             while (rs.next()) {
-                // 1. Armamos el Rol
+
                 TipoUsuario tipo = new TipoUsuario();
                 tipo.setIdTipo(rs.getInt("id_tipo"));
                 tipo.setNombreRol(rs.getString("nombre_rol"));
                 tipo.setMaxLibrosPermitidos(rs.getInt("max_libros_permitidos"));
                 tipo.setMaxDiasPrestamo(rs.getInt("max_dias_prestamo"));
 
-                // 2. Armamos el Usuario
                 Usuario usuario = new Usuario();
                 usuario.setIdUsuario(rs.getInt("ID_Usuario"));
                 usuario.setNombres(rs.getString("Nombres"));
@@ -115,7 +114,6 @@ public class UsuarioDAO {
                 usuario.setEstado(rs.getString("Estado"));
                 usuario.setTipoUsuario(tipo);
 
-                // 3. Lo agregamos a la lista
                 listaUsuarios.add(usuario);
             }
         } catch (SQLException e) {
