@@ -21,6 +21,11 @@ public class DialogNuevoPrestamo extends JDialog {
     private JButton btnBuscarEjemplar;
     private JLabel lblTituloMaterial, lblEstadoMaterial;
 
+    // Variables para almacenar las selecciones para enviarlas a MySQL
+    private com.biblioteca.model.Usuario usuarioFinal = null;
+    private int idEjemplarFinal = -1;
+    private LocalDate fechaPrestamoFinal;
+    private LocalDate fechaLimiteFinal;
     // Componentes de Resumen
     private JLabel lblFechaPrestamo, lblFechaLimite;
     private JButton btnCancelar, btnGuardar;
@@ -156,66 +161,93 @@ public class DialogNuevoPrestamo extends JDialog {
     private void configurarEventos() {
         btnCancelar.addActionListener(e -> this.dispose());
 
+        // --- BÚSQUEDA Y CÁLCULO DE LECTOR ---
         btnBuscarUsuario.addActionListener(e -> {
-            // 1. Abrimos el buscador modal
             DialogBuscarUsuario dialogBuscador = new DialogBuscarUsuario(this);
-            dialogBuscador.setVisible(true); // El código se pausa aquí hasta que cierres el buscador
+            dialogBuscador.setVisible(true);
 
-            // 2. Cuando se cierra, le preguntamos si seleccionó a alguien
-            Usuario userElegido = dialogBuscador.getUsuarioSeleccionado();
+            usuarioFinal = dialogBuscador.getUsuarioSeleccionado();
 
-            // 3. Si eligió a alguien, actualizamos la interfaz
-            if (userElegido != null) {
-                txtCarnet.setText(userElegido.getCarnet() + " - " + userElegido.getNombres());
-                lblNombreUsuario.setText("Lector: " + userElegido.getNombres() + " " + userElegido.getApellidos());
+            if (usuarioFinal != null) {
+                txtCarnet.setText(usuarioFinal.getCarnet() + " - " + usuarioFinal.getNombres());
+                lblNombreUsuario.setText("Lector: " + usuarioFinal.getNombres() + " " + usuarioFinal.getApellidos());
 
-                String textoMora = userElegido.getEstadoMora() ? "Sí" : "No";
-                lblEstadoUsuario.setText("Rol: " + userElegido.getTipoUsuario().getNombreRol() + " | Mora: " + textoMora);
+                String textoMora = usuarioFinal.getEstadoMora() ? "Sí" : "No";
+                lblEstadoUsuario.setText("Rol: " + usuarioFinal.getTipoUsuario().getNombreRol() + " | Mora: " + textoMora);
 
-                if (userElegido.getEstadoMora()) {
+                if (usuarioFinal.getEstadoMora()) {
                     lblEstadoUsuario.setForeground(new Color(220, 53, 69)); // Rojo
-                    JOptionPane.showMessageDialog(this, "Atención: El lector tiene mora activa.", "Advertencia", JOptionPane.WARNING_MESSAGE);
+                    btnGuardar.setEnabled(false);
+                    JOptionPane.showMessageDialog(this, "Atención: El lector tiene mora activa. No puede realizar préstamos.", "Advertencia", JOptionPane.WARNING_MESSAGE);
                 } else {
                     lblEstadoUsuario.setForeground(new Color(41, 171, 135)); // Verde
-                }
-            }
-        });
 
-        btnBuscarEjemplar.addActionListener(e -> {
-            DialogBuscarEjemplar dialogBuscador = new DialogBuscarEjemplar(this);
-            dialogBuscador.setVisible(true); // Se pausa hasta que elijas algo
+                    // --- AQUÍ HACEMOS EL CÁLCULO DE LAS FECHAS ---
+                    DateTimeFormatter formato = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+                    fechaPrestamoFinal = LocalDate.now();
 
-            String codBarras = dialogBuscador.getCodigoBarrasSeleccionado();
+                    // Sumamos los días que le permite su rol (ej. 7 días para alumnos, 14 para profesores)
+                    int diasPermitidos = usuarioFinal.getTipoUsuario().getMaxDiasPrestamo();
+                    fechaLimiteFinal = fechaPrestamoFinal.plusDays(diasPermitidos);
 
-            // Si realmente seleccionó algo y no solo cerró la ventana
-            if (codBarras != null) {
-                String titulo = dialogBuscador.getTituloSeleccionado();
-                String estado = dialogBuscador.getEstadoSeleccionado();
+                    lblFechaPrestamo.setText(fechaPrestamoFinal.format(formato));
+                    lblFechaLimite.setText(fechaLimiteFinal.format(formato));
+                    lblFechaLimite.setForeground(new Color(41, 171, 135)); // Pasamos de rojo a verde porque ya es válido
 
-                txtCodigoBarras.setText(codBarras);
-                lblTituloMaterial.setText("Título: " + titulo);
-                lblEstadoMaterial.setText("Disponibilidad: " + estado);
-
-                // Regla de Negocio: Solo podemos prestar si está "Disponible"
-                if (!"Disponible".equalsIgnoreCase(estado)) {
-                    lblEstadoMaterial.setForeground(new Color(220, 53, 69)); // Rojo
-                    btnGuardar.setEnabled(false); // Bloqueamos el botón de guardar
-                    JOptionPane.showMessageDialog(this, "Este material se encuentra '" + estado + "' y no puede ser prestado.", "Material No Disponible", JOptionPane.WARNING_MESSAGE);
-                } else {
-                    lblEstadoMaterial.setForeground(new Color(41, 171, 135)); // Verde
-
-                    // Si el usuario también fue seleccionado y no tiene mora, activamos el botón Guardar
-                    if (!txtCarnet.getText().isEmpty() && lblEstadoUsuario.getText().contains("Mora: No")) {
+                    // Si ya elegimos material válido, habilitamos el botón de guardar
+                    if (idEjemplarFinal != -1) {
                         btnGuardar.setEnabled(true);
                     }
                 }
             }
         });
 
-        // Simulación: Guardar
+        // --- BÚSQUEDA DE MATERIAL ---
+        btnBuscarEjemplar.addActionListener(e -> {
+            DialogBuscarEjemplar dialogBuscador = new DialogBuscarEjemplar(this);
+            dialogBuscador.setVisible(true);
+
+            String codBarras = dialogBuscador.getCodigoBarrasSeleccionado();
+
+            if (codBarras != null) {
+                idEjemplarFinal = dialogBuscador.getIdEjemplarSeleccionado();
+                String estado = dialogBuscador.getEstadoSeleccionado();
+
+                txtCodigoBarras.setText(codBarras);
+                lblTituloMaterial.setText("Título: " + dialogBuscador.getTituloSeleccionado());
+                lblEstadoMaterial.setText("Disponibilidad: " + estado);
+
+                if (!"Disponible".equalsIgnoreCase(estado)) {
+                    lblEstadoMaterial.setForeground(new Color(220, 53, 69));
+                    btnGuardar.setEnabled(false);
+                    idEjemplarFinal = -1; // Invalidamos la selección
+                    JOptionPane.showMessageDialog(this, "Este material está '" + estado + "'.", "No Disponible", JOptionPane.WARNING_MESSAGE);
+                } else {
+                    lblEstadoMaterial.setForeground(new Color(41, 171, 135));
+
+                    // Si ya elegimos un lector válido (sin mora), habilitamos el botón de guardar
+                    if (usuarioFinal != null && !usuarioFinal.getEstadoMora()) {
+                        btnGuardar.setEnabled(true);
+                    }
+                }
+            }
+        });
+
+        // --- GUARDADO FINAL DEL PRÉSTAMO ---
         btnGuardar.addActionListener(e -> {
-            JOptionPane.showMessageDialog(this, "¡Préstamo registrado exitosamente en la Base de Datos!", "Éxito", JOptionPane.INFORMATION_MESSAGE);
-            this.dispose();
+            try {
+                com.biblioteca.repository.impl.PrestamoDAO dao = new com.biblioteca.repository.impl.PrestamoDAO();
+
+                // Ejecutamos la transacción SQL
+                boolean exito = dao.registrarNuevoPrestamo(usuarioFinal.getIdUsuario(), idEjemplarFinal, fechaPrestamoFinal, fechaLimiteFinal);
+
+                if(exito) {
+                    JOptionPane.showMessageDialog(this, "¡Préstamo autorizado y guardado exitosamente!", "Éxito", JOptionPane.INFORMATION_MESSAGE);
+                    this.dispose(); // Cerramos la ventana
+                }
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this, "Error crítico al guardar el préstamo:\n" + ex.getMessage(), "Error de Base de Datos", JOptionPane.ERROR_MESSAGE);
+            }
         });
     }
 }

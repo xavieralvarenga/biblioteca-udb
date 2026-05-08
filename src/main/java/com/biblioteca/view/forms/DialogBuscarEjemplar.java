@@ -1,23 +1,28 @@
 package com.biblioteca.view.forms;
 
+import com.biblioteca.repository.impl.EjemplarDAO;
+
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.util.List;
 
 public class DialogBuscarEjemplar extends JDialog {
 
     private JTable tablaEjemplares;
     private DefaultTableModel modeloTabla;
     private JTextField txtBuscar;
+    private JComboBox<String> cbxTipoDoc;
 
     // Variables para guardar los datos del ejemplar seleccionado
     private int idEjemplarSeleccionado = -1;
     private String codigoBarrasSeleccionado = null;
     private String tituloSeleccionado = null;
     private String estadoSeleccionado = null;
+    private String tipoSeleccionado = null;
 
     public DialogBuscarEjemplar(Window owner) {
         super(owner, "Seleccionar Material (Ejemplar)", ModalityType.APPLICATION_MODAL);
@@ -30,11 +35,16 @@ public class DialogBuscarEjemplar extends JDialog {
         mainPanel.setBackground(Color.WHITE);
 
         // --- BARRA DE BÚSQUEDA ---
+
         JPanel panelNorte = new JPanel(new FlowLayout(FlowLayout.LEFT));
         panelNorte.setBackground(Color.WHITE);
         panelNorte.add(new JLabel("Buscar (Título, Autor o Cód. Barras): "));
         txtBuscar = new JTextField(25);
         panelNorte.add(txtBuscar);
+
+        panelNorte.add(new JLabel("Tipo:"));
+        cbxTipoDoc = new JComboBox<>(new String[]{"Todos", "Libro", "Revista", "CD"});
+        panelNorte.add(cbxTipoDoc);
 
         JButton btnFiltrar = new JButton("Filtrar");
         btnFiltrar.setBackground(new Color(61, 90, 128));
@@ -45,7 +55,7 @@ public class DialogBuscarEjemplar extends JDialog {
 
         // --- TABLA DE EJEMPLARES ---
         // Basado en tu ER: Ejemplar + Documento
-        String[] columnas = {"ID Ejemplar", "Cód. Barras", "Título", "Autor", "Estado"};
+        String[] columnas = {"ID Ejemplar", "Cód. Barras", "Título", "Autor","Tipo", "Estado"};
         modeloTabla = new DefaultTableModel(columnas, 0) {
             @Override
             public boolean isCellEditable(int row, int column) { return false; }
@@ -70,24 +80,48 @@ public class DialogBuscarEjemplar extends JDialog {
         add(mainPanel);
 
         // --- EVENTOS ---
-        cargarDatosDePrueba(); // Temporal hasta que hagamos el DAO de Ejemplares
+        // Temporal hasta que hagamos el DAO de Ejemplares
 
-        btnFiltrar.addActionListener(e -> JOptionPane.showMessageDialog(this, "Filtrando: " + txtBuscar.getText()));
-        txtBuscar.addActionListener(e -> btnFiltrar.doClick());
+        btnFiltrar.addActionListener(e -> filtrarDatos());
+        txtBuscar.addActionListener(e -> filtrarDatos()); // Filtra al dar Enter
+
+        // ¡Nuevo! Filtra automáticamente al cambiar el ComboBox (Libro, Revista, etc.)
+        cbxTipoDoc.addActionListener(e -> filtrarDatos());
 
         btnSeleccionar.addActionListener(e -> confirmarSeleccion());
+
         tablaEjemplares.addMouseListener(new MouseAdapter() {
             public void mouseClicked(MouseEvent me) {
                 if (me.getClickCount() == 2) confirmarSeleccion();
             }
         });
+        filtrarDatos();
     }
 
     // Datos simulados (Luego conectaremos esto a MySQL con un EjemplarDAO)
-    private void cargarDatosDePrueba() {
-        modeloTabla.addRow(new Object[]{1, "EJ-001", "El Principito", "Antoine de Saint-Exupéry", "Disponible"});
-        modeloTabla.addRow(new Object[]{2, "EJ-002", "Cálculo 1", "James Stewart", "Prestado"});
-        modeloTabla.addRow(new Object[]{3, "EJ-003", "Física Universitaria", "Sears Zemansky", "Disponible"});
+    private void filtrarDatos() {
+        String texto = txtBuscar.getText().trim();
+        String tipoStr = (String) cbxTipoDoc.getSelectedItem();
+
+        // Mapeo de IDs según el script SQL que ejecutamos
+        int idTipo = 0; // "Todos"
+        if ("Libro".equals(tipoStr)) idTipo = 1;
+        else if ("Revista".equals(tipoStr)) idTipo = 2;
+        else if ("CD".equals(tipoStr)) idTipo = 3;
+
+        modeloTabla.setRowCount(0); // Limpia la tabla antes de rellenar
+
+        try {
+            com.biblioteca.repository.impl.EjemplarDAO dao = new com.biblioteca.repository.impl.EjemplarDAO();
+            java.util.List<Object[]> lista = dao.buscarEjemplares(texto, idTipo);
+
+            for (Object[] fila : lista) {
+                modeloTabla.addRow(fila);
+            }
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Error de BD al cargar ejemplares: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            ex.printStackTrace();
+        }
     }
 
     private void confirmarSeleccion() {
@@ -101,7 +135,8 @@ public class DialogBuscarEjemplar extends JDialog {
         idEjemplarSeleccionado = (int) modeloTabla.getValueAt(fila, 0);
         codigoBarrasSeleccionado = (String) modeloTabla.getValueAt(fila, 1);
         tituloSeleccionado = (String) modeloTabla.getValueAt(fila, 2);
-        estadoSeleccionado = (String) modeloTabla.getValueAt(fila, 4);
+        tipoSeleccionado = (String) modeloTabla.getValueAt(fila, 4);
+        estadoSeleccionado = (String) modeloTabla.getValueAt(fila, 5);
 
         this.dispose(); // Cerramos el buscador
     }
@@ -111,4 +146,5 @@ public class DialogBuscarEjemplar extends JDialog {
     public String getCodigoBarrasSeleccionado() { return codigoBarrasSeleccionado; }
     public String getTituloSeleccionado() { return tituloSeleccionado; }
     public String getEstadoSeleccionado() { return estadoSeleccionado; }
+    public String getTipoSeleccionado() { return tipoSeleccionado; }
 }

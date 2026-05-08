@@ -84,7 +84,7 @@ public class PanelPrestamos extends JPanel {
         add(panelSur, BorderLayout.SOUTH);
 
         // Cargar datos de prueba iniciales
-        cargarDatosDePrueba();
+        cargarPrestamosDesdeBD();
 
         // Eventos
         configurarEventos();
@@ -132,10 +132,19 @@ public class PanelPrestamos extends JPanel {
         tablaPrestamos.getColumnModel().getColumn(7).setCellRenderer(renderizadorColores);
     }
 
-    private void cargarDatosDePrueba() {
-        modeloTabla.addRow(new Object[]{"1", "AD262401", "Andy Alvarado", "EJ-0012", "El Principito", "2024-05-01", "2024-05-08", "Vencido"});
-        modeloTabla.addRow(new Object[]{"2", "NR1234", "Nicole Rivera", "EJ-0089", "Cálculo de Stewart", "2024-05-05", "2024-05-19", "Activo"});
-        modeloTabla.addRow(new Object[]{"3", "AD4321", "Victor Iraheta", "EJ-0102", "Don Quijote", "2024-04-10", "2024-04-24", "Devuelto"});
+    public void cargarPrestamosDesdeBD() {
+        modeloTabla.setRowCount(0); // Limpiamos la tabla
+
+        try {
+            com.biblioteca.repository.impl.PrestamoDAO prestamoDAO = new com.biblioteca.repository.impl.PrestamoDAO();
+            java.util.List<Object[]> listaPrestamos = prestamoDAO.obtenerTodosLosPrestamos();
+
+            for (Object[] fila : listaPrestamos) {
+                modeloTabla.addRow(fila);
+            }
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "Error al cargar la tabla de préstamos: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private void configurarEventos() {
@@ -144,6 +153,8 @@ public class PanelPrestamos extends JPanel {
             // Asegúrate de importar com.biblioteca.view.forms.DialogNuevoPrestamo si te lo pide
             com.biblioteca.view.forms.DialogNuevoPrestamo dialog = new com.biblioteca.view.forms.DialogNuevoPrestamo(ventanaPadre);
             dialog.setVisible(true);
+
+            cargarPrestamosDesdeBD();
 
             // Aquí pondremos el cargarPrestamosDesdeBD() más adelante
         });

@@ -16,6 +16,7 @@ public class DialogBuscarUsuario extends JDialog {
     private JTable tablaUsuarios;
     private DefaultTableModel modeloTabla;
     private JTextField txtBuscar;
+    private List<Usuario> listaUsuariosActual;
 
     // Variable para guardar el usuario que el administrador elija
     private Usuario usuarioSeleccionado = null;
@@ -106,6 +107,7 @@ public class DialogBuscarUsuario extends JDialog {
     }
 
     private void llenarTabla(List<Usuario> lista) {
+        this.listaUsuariosActual = lista; // Guardamos la lista completa en memoria
         modeloTabla.setRowCount(0);
         for (Usuario u : lista) {
             String textoMora = (u.getEstadoMora() != null && u.getEstadoMora()) ? "Sí" : "No";
@@ -119,29 +121,9 @@ public class DialogBuscarUsuario extends JDialog {
             JOptionPane.showMessageDialog(this, "Por favor selecciona un usuario de la lista.");
             return;
         }
-
-        // Recuperamos los datos de la fila seleccionada
-        int id = (int) modeloTabla.getValueAt(fila, 0);
-        String carnet = (String) modeloTabla.getValueAt(fila, 1);
-        String nombres = (String) modeloTabla.getValueAt(fila, 2);
-        String apellidos = (String) modeloTabla.getValueAt(fila, 3);
-        String rol = (String) modeloTabla.getValueAt(fila, 4);
-        boolean tieneMora = "Sí".equals(modeloTabla.getValueAt(fila, 5));
-
-        // Construimos el objeto para devolverlo a la ventana principal
-        usuarioSeleccionado = new Usuario();
-        usuarioSeleccionado.setIdUsuario(id);
-        usuarioSeleccionado.setCarnet(carnet);
-        usuarioSeleccionado.setNombres(nombres);
-        usuarioSeleccionado.setApellidos(apellidos);
-        usuarioSeleccionado.setEstadoMora(tieneMora);
-
-        com.biblioteca.model.TipoUsuario tipo = new com.biblioteca.model.TipoUsuario();
-        tipo.setNombreRol(rol);
-        // Podrías agregar max_dias_prestamo aquí si lo extraes de la BD
-        usuarioSeleccionado.setTipoUsuario(tipo);
-
-        this.dispose(); // Cerramos el buscador
+        // Recuperamos el objeto original que ya trae todos los datos de MySQL (incluyendo los días de préstamo)
+        usuarioSeleccionado = listaUsuariosActual.get(fila);
+        this.dispose();
     }
 
     // Método que usará tu formulario principal para obtener el resultado
