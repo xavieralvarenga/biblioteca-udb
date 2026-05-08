@@ -32,7 +32,7 @@ public class LoginFrame extends JFrame {
         lblNotificacion.setVisible(false); // No se ve hasta que haya un error
         mainPanel.add(lblNotificacion);
 
-        JLabel lblUsuario = new JLabel("Carnet / Usuario:");
+        JLabel lblUsuario = new JLabel("Carnet:");
         lblUsuario.setBounds(50, 110, 300, 25);
         mainPanel.add(lblUsuario);
 

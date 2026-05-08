@@ -1,8 +1,11 @@
 package com.biblioteca.service;
 
+import com.biblioteca.config.DatabaseConnection;
 import com.biblioteca.model.Usuario;
 import com.biblioteca.repository.impl.UsuarioDAO;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.util.List;
 
 public class UsuarioService {
@@ -87,11 +90,30 @@ public class UsuarioService {
         }
         return true;
     }
+
+    public boolean actualizarUsuario(Usuario usuario) throws Exception {
+        boolean exito = usuarioDAO.actualizarUsuario(usuario);
+        if (!exito) {
+            throw new Exception("No se pudieron actualizar los datos del usuario.");
+        }
+        return true;
+    }
+
+    public Usuario obtenerPorId(int idUsuario) throws Exception {
+        Usuario usuario = usuarioDAO.obtenerPorId(idUsuario);
+
+        if (usuario == null) {
+            throw new Exception("Usuario no encontrado");
+        }
+
+        return usuario;
+    }
     /**
      * Ejecuta una búsqueda avanzada de usuarios basándose en criterios de texto y rol.
      */
     public List<Usuario> buscarConFiltro(String textoBusqueda, Integer idRol, Boolean mora, String estado) {
         return usuarioDAO.buscarUsuariosConFiltro(textoBusqueda, idRol, mora, estado);
     }
+
 
 }

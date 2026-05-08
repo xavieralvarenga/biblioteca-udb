@@ -1,40 +1,30 @@
 package com.biblioteca.view.panels;
 
-import com.biblioteca.model.Documento;
-import com.biblioteca.service.IDocumentoService;
-import com.biblioteca.service.impl.DocumentoServiceImpl;
+import com.biblioteca.view.forms.DialogDetalleDocumento;
 import com.biblioteca.view.forms.DialogNuevoDocumento;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
-import java.sql.SQLException;
-import java.util.List;
 
 public class PanelInventario extends JPanel {
 
-    // Capa de Negocio (Service)
-    private final IDocumentoService documentoService;
-
-    // Componentes de la Interfaz
     private JTable tablaDocumentos;
     private DefaultTableModel modeloTabla;
     private JTextField txtBuscar;
     private JComboBox<String> cbxFiltroTipo;
     private JButton btnNuevo, btnEditar, btnEliminar, btnEjemplares;
 
-    public PanelInventario() throws SQLException {
-        // 1. INICIALIZACIÓN DE DEPENDENCIAS (Crítico: Debe ir primero)
-        // Esto evita el NullPointerException al llamar a llenarTablaDesdeBD()
-        this.documentoService = new DocumentoServiceImpl();
+    public PanelInventario() {
+        com.biblioteca.model.Usuario usuarioActivo = com.biblioteca.util.SessionManager.getInstance().getUsuarioLogueado();
+        int rol = usuarioActivo.getTipoUsuario().getIdTipo();
 
-        // 2. CONFIGURACIÓN DEL PANEL Y LAYOUT
-        setLayout(new BorderLayout(10, 10)); // Espaciado entre componentes
-        setBackground(Color.WHITE); // Fondo limpio
-        setBorder(new EmptyBorder(20, 20, 20, 20)); // Márgenes para que respire el diseño
+        // Configuramos el layout principal de este panel
+        setLayout(new BorderLayout(10, 10));
+        setBackground(Color.WHITE);
+        setBorder(new EmptyBorder(20, 20, 20, 20)); // Márgenes internos
 
-        // 3. CONSTRUCCIÓN DE LA PARTE NORTE (Título y Buscador)
         JPanel panelNorte = new JPanel(new BorderLayout(10, 10));
         panelNorte.setBackground(Color.WHITE);
 
@@ -54,30 +44,36 @@ public class PanelInventario extends JPanel {
         cbxFiltroTipo = new JComboBox<>(new String[]{"Todos", "Libro", "Revista", "CD"});
         panelBusqueda.add(cbxFiltroTipo);
 
-        JButton btnFiltrar = crearBoton("Filtrar", new Color(61, 90, 128));
-        panelBusqueda.add(btnFiltrar);
+        JButton btnBuscar = new JButton("Filtrar");
+        btnBuscar.setBackground(new Color(61, 90, 128));
+        btnBuscar.setForeground(Color.WHITE);
+        panelBusqueda.add(btnBuscar);
 
         panelNorte.add(panelBusqueda, BorderLayout.CENTER);
         add(panelNorte, BorderLayout.NORTH);
-
-        // 4. CONFIGURACIÓN DE LA TABLA (Centro)
+        //Tabla de datos
         String[] columnas = {"ID", "Tipo", "Título", "Autor", "Ubicación", "Estado"};
         modeloTabla = new DefaultTableModel(columnas, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
-                return false; // Desactivar edición directa en celdas
+                return false;
             }
         };
 
         tablaDocumentos = new JTable(modeloTabla);
-        tablaDocumentos.setRowHeight(30); // Filas amplias para estilo moderno
+        tablaDocumentos.setRowHeight(30); // Filas más altas para diseño moderno
         tablaDocumentos.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 14));
-        tablaDocumentos.setSelectionMode(ListSelectionModel.SINGLE_SELECTION); // Solo una fila a la vez
+        tablaDocumentos.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        tablaDocumentos.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+
+        // Configuraciones de diseño de FlatLaf para tablas
+        tablaDocumentos.setShowVerticalLines(false);
+        tablaDocumentos.setIntercellSpacing(new Dimension(0, 0));
 
         JScrollPane scrollPane = new JScrollPane(tablaDocumentos);
         add(scrollPane, BorderLayout.CENTER);
 
-        // 5. CONSTRUCCIÓN DE LA PARTE SUR (Botones de Acción)
+        // 3. botones
         JPanel panelSur = new JPanel(new FlowLayout(FlowLayout.RIGHT, 15, 10));
         panelSur.setBackground(Color.WHITE);
 
@@ -89,78 +85,17 @@ public class PanelInventario extends JPanel {
         panelSur.add(btnEjemplares);
         panelSur.add(btnNuevo);
         panelSur.add(btnEditar);
-        panelSur.add(btnEliminar);
+
+        if (rol == 1) {
+            panelSur.add(btnEliminar);
+        }
 
         add(panelSur, BorderLayout.SOUTH);
-
-        // 6. CARGA DE DATOS REALES DESDE LA BASE DE DATOS
-        // Ahora que service no es null y modeloTabla existe, podemos llamar al método
-        llenarTablaDesdeBD();
-
-        // 7. ASIGNACIÓN DE EVENTOS
+        cargarDatosDePrueba();
         configurarEventos();
     }
 
-    /**
-     * Recupera los datos del catálogo llamando al Service.
-     */
-    private void llenarTablaDesdeBD() {
-        // Limpiamos el modelo actual para no duplicar filas
-        modeloTabla.setRowCount(0);
-
-        try {
-            // Obtenemos la lista polimórfica (Libros, Revistas, CDs)
-            List<Documento> documentos = documentoService.listarInventario();
-
-            // Llenamos el modelo con los datos reales
-            for (Documento doc : documentos) {
-                modeloTabla.addRow(new Object[]{
-                        doc.getIdDocumento(),
-                        doc.getClass().getSimpleName(), // Nombre de la clase (Libro, Revista, etc.)
-                        doc.getTitulo(),
-                        doc.getAutor(),
-                        doc.getUbicacionFisica(),
-                        doc.getEstado()
-                });
-            }
-        } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, "Error al conectar con la base de datos: " + e.getMessage());
-        }
-    }
-
-    private void configurarEventos() {
-        // Evento para abrir el diálogo de creación
-        btnNuevo.addActionListener(e -> {
-            Window ventanaPadre = SwingUtilities.getWindowAncestor(this);
-            DialogNuevoDocumento dialog = new DialogNuevoDocumento(ventanaPadre);
-            dialog.setVisible(true);
-            llenarTablaDesdeBD(); // Refrescar al cerrar el diálogo
-        });
-
-//        // Evento para eliminar un registro
-//        btnEliminar.addActionListener(e -> {
-//            int fila = tablaDocumentos.getSelectedRow();
-//            if (fila == -1) {
-//                JOptionPane.showMessageDialog(this, "Selecciona un documento para eliminar.");
-//                return;
-//            }
-//
-//            // Obtenemos el ID de la primera columna
-//            int id = (int) modeloTabla.getValueAt(fila, 0);
-//            int confirmar = JOptionPane.showConfirmDialog(this, "¿Eliminar documento ID: " + id + "?", "Confirmar", JOptionPane.YES_NO_OPTION);
-//
-//            if (confirmar == JOptionPane.YES_OPTION) {
-//                if (documentoService.darDeBajaDocumento(id)) {
-//                    JOptionPane.showMessageDialog(this, "Documento eliminado con éxito.");
-//                    llenarTablaDesdeBD(); // Actualizar vista
-//                } else {
-//                    JOptionPane.showMessageDialog(this, "No se pudo eliminar el documento.");
-//                }
-//            }
-//        });
-    }
-
-    // Método auxiliar para crear botones estilizados con FlatLaf en mente
+    // Método auxiliar para crear botones estilizados
     private JButton crearBoton(String texto, Color colorFondo) {
         JButton btn = new JButton(texto);
         btn.setFont(new Font("Segoe UI", Font.BOLD, 14));
@@ -169,5 +104,39 @@ public class PanelInventario extends JPanel {
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btn.setFocusPainted(false);
         return btn;
+    }
+
+    private void cargarDatosDePrueba() {
+        modeloTabla.addRow(new Object[]{"1", "Libro", "El Señor de los Anillos", "J.R.R. Tolkien", "Estante A1", "Disponible"});
+        modeloTabla.addRow(new Object[]{"2", "Revista", "National Geographic - Mayo", "NatGeo", "Hemeroteca", "Prestado"});
+        modeloTabla.addRow(new Object[]{"3", "CD", "Sinfonía No. 9", "Beethoven", "Multimedia", "Disponible"});
+    }
+
+    private void configurarEventos() {
+        btnNuevo.addActionListener(e -> {
+            Window ventanaPadre = SwingUtilities.getWindowAncestor(this);
+            DialogNuevoDocumento dialog = new DialogNuevoDocumento(ventanaPadre);
+            dialog.setVisible(true);
+        });
+
+        btnEditar.addActionListener(e -> {
+            int filaSeleccionada = tablaDocumentos.getSelectedRow();
+            if (filaSeleccionada == -1) {
+                JOptionPane.showMessageDialog(this, "Por favor, selecciona un documento de la tabla primero.", "Advertencia", JOptionPane.WARNING_MESSAGE);
+            } else {
+                String id = (String) modeloTabla.getValueAt(filaSeleccionada, 0);
+                String tipo = (String) modeloTabla.getValueAt(filaSeleccionada, 1);
+                String titulo = (String) modeloTabla.getValueAt(filaSeleccionada, 2);
+                String autor = (String) modeloTabla.getValueAt(filaSeleccionada, 3);
+                String ubicacion = (String) modeloTabla.getValueAt(filaSeleccionada, 4);
+                String estado = (String) modeloTabla.getValueAt(filaSeleccionada, 5);
+
+                Window ventanaPadre = SwingUtilities.getWindowAncestor(this);
+                DialogDetalleDocumento dialogDetalle = new DialogDetalleDocumento(
+                        ventanaPadre, id, tipo, titulo, autor, ubicacion, estado
+                );
+                dialogDetalle.setVisible(true);
+            }
+        });
     }
 }

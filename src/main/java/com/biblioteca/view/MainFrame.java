@@ -30,7 +30,7 @@ public class MainFrame extends JFrame {
             return; // Corta la ejecución
         }
         String nombreMostrado = usuarioActivo.getNombres();
-        String rol = usuarioActivo.getTipoUsuario().getNombreRol();
+        int rol = usuarioActivo.getTipoUsuario().getIdTipo();
 
         // --- SIDEBAR (Menú lateral) ---
         JPanel sidebar = new JPanel();
@@ -46,9 +46,10 @@ public class MainFrame extends JFrame {
         sidebar.add(lblLogo);
         sidebar.add(Box.createRigidArea(new Dimension(0, 40)));
 
-        JButton btnInicio = crearBotonMenu("Inicio / Bienvenida");
-        JButton btnPrestamos = crearBotonMenu("Gestión de Préstamos");
+        JButton btnInicio = crearBotonMenu("Inicio");
         JButton btnSalir = crearBotonMenu("Cerrar Sesión");
+
+        JButton btnPrestamos = crearBotonMenu("Gestión de Préstamos");
         JButton btnInventario = crearBotonMenu("Inventario");
         JButton btnUsuarios = crearBotonMenu("Gestión de Usuarios");
 
@@ -56,12 +57,12 @@ public class MainFrame extends JFrame {
         sidebar.add(Box.createRigidArea(new Dimension(0, 10)));
         sidebar.add(btnPrestamos);
         // Si es Admin o Profesor, puede ver Inventario. Si es alumno, tal vez no, o solo consulta.
-        if (rol.equalsIgnoreCase("Administrador") || rol.equalsIgnoreCase("Profesor")) {
+        if (rol == 1 || rol == 2) {
             sidebar.add(Box.createRigidArea(new Dimension(0, 10)));
             sidebar.add(btnInventario);
         }
         // SOLO LOS ADMINISTRADORES pueden gestionar usuarios
-        if (rol.equalsIgnoreCase("Administrador")) {
+        if (rol == 1) {
             sidebar.add(Box.createRigidArea(new Dimension(0, 10)));
             sidebar.add(btnUsuarios);
         }

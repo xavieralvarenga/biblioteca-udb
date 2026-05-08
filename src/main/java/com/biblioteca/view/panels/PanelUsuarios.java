@@ -1,5 +1,6 @@
 package com.biblioteca.view.panels;
 
+import com.biblioteca.view.forms.DialogEditarUsuario;
 import com.biblioteca.view.forms.DialogNuevoUsuario;
 
 import javax.swing.*;
@@ -155,11 +156,26 @@ public class PanelUsuarios extends JPanel {
 
         btnEditar.addActionListener(e -> {
             int fila = tablaUsuarios.getSelectedRow();
+
             if (fila == -1) {
-                JOptionPane.showMessageDialog(this, "Selecciona un usuario de la tabla primero.", "Advertencia", JOptionPane.WARNING_MESSAGE);
-            } else {
-                String nombre = (String) modeloTabla.getValueAt(fila, 2);
-                JOptionPane.showMessageDialog(this, "Editando usuario: " + nombre);
+                JOptionPane.showMessageDialog(this,
+                        "Selecciona un usuario primero.");
+                return;
+            }
+
+            try {
+                int idUsuario = (int) modeloTabla.getValueAt(fila, 0);
+                com.biblioteca.service.UsuarioService service = new com.biblioteca.service.UsuarioService();
+                com.biblioteca.model.Usuario usuario = service.obtenerPorId(idUsuario);
+                Window ventanaPadre = SwingUtilities.getWindowAncestor(this);
+                new DialogEditarUsuario(ventanaPadre, usuario);
+
+                cargarUsuariosDesdeBD();
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this,
+                        ex.getMessage(),
+                        "Error",
+                        JOptionPane.ERROR_MESSAGE);
             }
         });
 
@@ -339,5 +355,4 @@ public class PanelUsuarios extends JPanel {
             JOptionPane.showMessageDialog(this, "Error al filtrar usuarios: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
-
 }

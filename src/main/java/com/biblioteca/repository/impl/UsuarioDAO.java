@@ -153,7 +153,75 @@ public class UsuarioDAO {
         }
     }
 
+    public boolean actualizarUsuario(Usuario usuario) throws Exception {
+        String sql = """
+            UPDATE Usuarios SET
+                nombres = ?,
+                apellidos = ?,
+                carnet_docente_alumno = ?,
+                id_tipo = ?,
+                estado = ?
+            WHERE ID_Usuario = ?
+        """;
 
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, usuario.getNombres());
+            ps.setString(2, usuario.getApellidos());
+            ps.setString(3, usuario.getCarnet());
+
+            ps.setInt(4, usuario.getTipoUsuario().getIdTipo());
+
+            ps.setString(5, usuario.getEstado());
+
+            ps.setInt(6, usuario.getIdUsuario());
+
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.err.println("Error al editar usuario: " + e.getMessage());
+            return false;
+        }
+    }
+
+    public Usuario obtenerPorId(int idUsuario) throws Exception {
+        String sql = """
+            SELECT *
+            FROM Usuarios u
+            INNER JOIN TipoUsuario t
+            ON u.id_tipo = t.id_tipo
+            WHERE u.ID_Usuario = ?
+        """;
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, idUsuario);
+
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+
+                Usuario u = new Usuario();
+
+                u.setIdUsuario(rs.getInt("ID_Usuario"));
+                u.setNombres(rs.getString("nombres"));
+                u.setApellidos(rs.getString("apellidos"));
+                u.setCarnet(rs.getString("carnet_docente_alumno"));
+                u.setEstado(rs.getString("estado"));
+
+                TipoUsuario tipo = new TipoUsuario();
+                tipo.setIdTipo(rs.getInt("id_tipo"));
+                tipo.setNombreRol(rs.getString("nombre_rol"));
+
+                u.setTipoUsuario(tipo);
+
+                return u;
+            }
+
+            throw new Exception("Usuario no encontrado.");
+        }
+    }
 
     /**
      * Busca usuarios aplicando filtros avanzados.
