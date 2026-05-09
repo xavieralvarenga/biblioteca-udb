@@ -127,6 +127,143 @@ public class DocumentoDAO implements IDocumentoDAO {
         return lista;
     }
 
-    @Override public boolean actualizar(Documento doc) { return false; }
-    @Override public boolean eliminar(int id) { return false; }
+    /**
+     * Actualiza la información de un documento en la base de datos.
+     * Utiliza transacciones para modificar la tabla padre y la tabla hija.
+     * * @param doc El objeto documento con los datos actualizados.
+     * @return true si la operación fue exitosa, false de lo contrario.
+     */
+    @Override
+    public boolean actualizar(Documento doc) {
+        // SQL para la tabla principal
+        String sqlPadre = "UPDATE Documento SET titulo = ?, autor = ?, ubicacion_fisica = ?, " +
+                "codigo_de_barras = ?, estado = ? WHERE id_documento = ?";
+
+        try {
+            // Iniciamos transacción para asegurar consistencia
+            connection.setAutoCommit(false);
+
+            // 1. Actualizar tabla padre (Documento)
+            try (PreparedStatement ps = connection.prepareStatement(sqlPadre)) {
+                ps.setString(1, doc.getTitulo());
+                ps.setString(2, doc.getAutor());
+                ps.setString(3, doc.getUbicacionFisica());
+                ps.setString(4, doc.getCodigoBarrasObra());
+                ps.setString(5, doc.getEstado());
+                ps.setInt(6, doc.getIdDocumento());
+
+                ps.executeUpdate();
+            }
+
+            // 2. Actualizar tabla hija según la instancia del objeto
+            actualizarTablaHija(doc);
+
+            // Si ambas operaciones fueron exitosas, confirmamos los cambios
+            connection.commit();
+            return true;
+
+        } catch (SQLException e) {
+            // En caso de error, revertimos los cambios realizados en la transacción
+            try { connection.rollback(); } catch (SQLException ex) { ex.printStackTrace(); }
+            System.err.println("Error al actualizar documento: " + e.getMessage());
+            return false;
+        } finally {
+            try { connection.setAutoCommit(true); } catch (SQLException e) { e.printStackTrace(); }
+        }
+    }
+
+    /**
+     * Método auxiliar privado para actualizar los campos específicos de cada tipo de documento.
+     * @param doc Objeto documento a persistir.
+     * @throws SQLException Si ocurre un error en la ejecución SQL.
+     */
+    private void actualizarTablaHija(Documento doc) throws SQLException {
+        String sql = "";
+
+        if (doc instanceof Libro) {
+            Libro l = (Libro) doc;
+            sql = "UPDATE Libro SET isbn = ?, editorial = ?, edicion = ? WHERE id_documento = ?";
+            try (PreparedStatement ps = connection.prepareStatement(sql)) {
+                ps.setString(1, l.getIsbn());
+                ps.setString(2, l.getEditorial());
+                ps.setString(3, l.getEdicion());
+                ps.setInt(4, l.getIdDocumento());
+                ps.executeUpdate();
+            }
+        } else if (doc instanceof Revista) {
+            Revista r = (Revista) doc;
+            sql = "UPDATE Revista SET issn = ?, volumen = ?, mes_publicacion = ? WHERE id_documento = ?";
+            try (PreparedStatement ps = connection.prepareStatement(sql)) {
+                ps.setString(1, r.getIssn());
+                ps.setString(2, r.getVolumen());
+                ps.setString(3, r.getMesPublicacion());
+                ps.setInt(4, r.getIdDocumento());
+                ps.executeUpdate();
+            }
+        } else if (doc instanceof Cd) {
+            Cd c = (Cd) doc;
+            sql = "UPDATE CD SET duracion_minutos = ?, tipo_contenido = ? WHERE id_documento = ?";
+            try (PreparedStatement ps = connection.prepareStatement(sql)) {
+                ps.setInt(1, c.getDuracionMinutos());
+                ps.setString(2, c.getTipoContenido());
+                ps.setInt(3, c.getIdDocumento());
+                ps.executeUpdate();
+            }
+        }
+    }
+
+    /**
+     * Elimina un documento de la base de datos de forma permanente.
+     * Realiza un borrado en cascada manual dentro de una transacción.
+     * * @param id El identificador único del documento a eliminar.
+     * @return true si el borrado fue exitoso en todas las tablas involucradas.
+     */
+    @Override
+    public boolean eliminar(int id) {
+        // Queries para limpiar tablas hijas y luego la tabla padre
+        String sqlHijoLibro = "DELETE FROM Libro WHERE id_documento = ?";
+        String sqlHijoRevista = "DELETE FROM Revista WHERE id_documento = ?";
+        String sqlHijoCD = "DELETE FROM CD WHERE id_documento = ?";
+        String sqlPadre = "DELETE FROM Documento WHERE id_documento = ?";
+
+        try {
+            connection.setAutoCommit(false);
+
+            // Intentamos borrar de todas las posibles tablas hijas (solo una tendrá éxito)
+            try (PreparedStatement psL = connection.prepareStatement(sqlHijoLibro);
+                 PreparedStatement psR = connection.prepareStatement(sqlHijoRevista);
+                 PreparedStatement psC = connection.prepareStatement(sqlHijoCD)) {
+
+                psL.setInt(1, id);
+                psL.executeUpdate();
+
+                psR.setInt(1, id);
+                psR.executeUpdate();
+
+                psC.setInt(1, id);
+                psC.executeUpdate();
+            }
+
+            // Finalmente borramos el registro padre
+            try (PreparedStatement psP = connection.prepareStatement(sqlPadre)) {
+                psP.setInt(1, id);
+                int filasAfectadas = psP.executeUpdate();
+
+                if (filasAfectadas > 0) {
+                    connection.commit();
+                    return true;
+                }
+            }
+
+            connection.rollback();
+            return false;
+
+        } catch (SQLException e) {
+            try { connection.rollback(); } catch (SQLException ex) { ex.printStackTrace(); }
+            System.err.println("Error al eliminar documento: " + e.getMessage());
+            return false;
+        } finally {
+            try { connection.setAutoCommit(true); } catch (SQLException e) { e.printStackTrace(); }
+        }
+    }
 }

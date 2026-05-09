@@ -3,7 +3,7 @@ package com.biblioteca.view.panels;
 import com.biblioteca.model.Documento;
 import com.biblioteca.service.IDocumentoService;
 import com.biblioteca.service.impl.DocumentoServiceImpl;
-import com.biblioteca.view.forms.DialogDetalleDocumento;
+import com.biblioteca.view.forms.DialogEditarDocumento;
 import com.biblioteca.view.forms.DialogNuevoDocumento;
 
 import javax.swing.*;
@@ -13,9 +13,14 @@ import java.awt.*;
 import java.sql.SQLException;
 import java.util.List;
 
+/**
+ * Panel principal para la gestión del inventario de documentos.
+ * Proporciona funcionalidades de visualización, filtrado, creación,
+ * edición y eliminación de libros, revistas y CDs.
+ */
 public class PanelInventario extends JPanel {
 
-    // Capa de Negocio
+    /** Capa de servicio para la lógica de negocio de documentos */
     private final IDocumentoService documentoService;
 
     private JTable tablaDocumentos;
@@ -24,25 +29,40 @@ public class PanelInventario extends JPanel {
     private JComboBox<String> cbxFiltroTipo;
     private JButton btnNuevo, btnEditar, btnEliminar, btnEjemplares;
 
+    /**
+     * Constructor del panel. Inicializa el servicio y construye la interfaz.
+     */
     public PanelInventario() {
-        // 1. Inicialización del Servicio (Manejo de la excepción SQL)
+        // Inicialización del servicio con manejo de excepción de conexión
         try {
             this.documentoService = new DocumentoServiceImpl();
         } catch (SQLException e) {
-            JOptionPane.showMessageDialog(this, "Error crítico: No se pudo conectar a la base de datos.");
+            JOptionPane.showMessageDialog(this, "Error de conexión: " + e.getMessage());
             throw new RuntimeException(e);
         }
 
+        // Obtención del rol del usuario para control de acceso (RBAC)
         com.biblioteca.model.Usuario usuarioActivo = com.biblioteca.util.SessionManager.getInstance().getUsuarioLogueado();
-        int rol = usuarioActivo.getTipoUsuario().getIdTipo();
+        int rol = (usuarioActivo != null) ? usuarioActivo.getTipoUsuario().getIdTipo() : 0;
 
         setLayout(new BorderLayout(10, 10));
         setBackground(Color.WHITE);
         setBorder(new EmptyBorder(20, 20, 20, 20));
 
-        // --- Construcción de UI (Panel Norte) ---
+        initComponents(rol);
+        llenarTablaDesdeBD();
+        configurarEventos();
+    }
+
+    /**
+     * Inicializa y organiza los componentes visuales del panel.
+     * @param rol El ID del rol del usuario actual para habilitar/deshabilitar acciones.
+     */
+    private void initComponents(int rol) {
+        // --- Panel Norte: Título y Buscador ---
         JPanel panelNorte = new JPanel(new BorderLayout(10, 10));
         panelNorte.setBackground(Color.WHITE);
+
         JLabel lblTitulo = new JLabel("Gestión de Inventario (Documentos)");
         lblTitulo.setFont(new Font("Segoe UI", Font.BOLD, 24));
         panelNorte.add(lblTitulo, BorderLayout.NORTH);
@@ -55,13 +75,12 @@ public class PanelInventario extends JPanel {
         panelBusqueda.add(new JLabel("Tipo:"));
         cbxFiltroTipo = new JComboBox<>(new String[]{"Todos", "Libro", "Revista", "CD"});
         panelBusqueda.add(cbxFiltroTipo);
+        panelBusqueda.add(crearBoton("Filtrar", new Color(61, 90, 128)));
 
-        JButton btnBuscar = crearBoton("Filtrar", new Color(61, 90, 128));
-        panelBusqueda.add(btnBuscar);
         panelNorte.add(panelBusqueda, BorderLayout.CENTER);
         add(panelNorte, BorderLayout.NORTH);
 
-        // --- Configuración de Tabla ---
+        // --- Panel Centro: Tabla de Datos ---
         String[] columnas = {"ID", "Tipo", "Título", "Autor", "Ubicación", "Estado"};
         modeloTabla = new DefaultTableModel(columnas, 0) {
             @Override
@@ -71,10 +90,9 @@ public class PanelInventario extends JPanel {
         tablaDocumentos = new JTable(modeloTabla);
         tablaDocumentos.setRowHeight(30);
         tablaDocumentos.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        JScrollPane scrollPane = new JScrollPane(tablaDocumentos);
-        add(scrollPane, BorderLayout.CENTER);
+        add(new JScrollPane(tablaDocumentos), BorderLayout.CENTER);
 
-        // --- Panel Sur (Botones) ---
+        // --- Panel Sur: Acciones ---
         JPanel panelSur = new JPanel(new FlowLayout(FlowLayout.RIGHT, 15, 10));
         panelSur.setBackground(Color.WHITE);
 
@@ -86,25 +104,24 @@ public class PanelInventario extends JPanel {
         panelSur.add(btnEjemplares);
         panelSur.add(btnNuevo);
         panelSur.add(btnEditar);
-        if (rol == 1) panelSur.add(btnEliminar);
-        add(panelSur, BorderLayout.SOUTH);
 
-        // 2. CARGA DE DATOS REALES
-        llenarTablaDesdeBD();
-        configurarEventos();
+        // Solo el administrador (Rol 1) puede eliminar
+        if (rol == 1) panelSur.add(btnEliminar);
+
+        add(panelSur, BorderLayout.SOUTH);
     }
 
     /**
-     * Reemplaza a cargarDatosDePrueba(). Obtiene la lista del Service y la vuelca en la tabla.
+     * Consulta la base de datos mediante el servicio y actualiza el modelo de la tabla.
      */
     private void llenarTablaDesdeBD() {
-        modeloTabla.setRowCount(0); // Limpiar tabla antes de recargar
+        modeloTabla.setRowCount(0);
         try {
             List<Documento> lista = documentoService.listarInventario();
             for (Documento doc : lista) {
                 modeloTabla.addRow(new Object[]{
                         doc.getIdDocumento(),
-                        doc.getClass().getSimpleName(), // Obtiene "Libro", "Revista" o "Cd"
+                        doc.getClass().getSimpleName(),
                         doc.getTitulo(),
                         doc.getAutor(),
                         doc.getUbicacionFisica(),
@@ -112,34 +129,89 @@ public class PanelInventario extends JPanel {
                 });
             }
         } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, "Error al cargar datos: " + e.getMessage());
+            JOptionPane.showMessageDialog(this, "Error al cargar la tabla: " + e.getMessage());
         }
     }
 
-    private void configurarEventos() {
-        btnNuevo.addActionListener(e -> {
-            Window ventanaPadre = SwingUtilities.getWindowAncestor(this);
-            DialogNuevoDocumento dialog = new DialogNuevoDocumento(ventanaPadre);
-            dialog.setVisible(true);
-            llenarTablaDesdeBD(); // Refrescar tabla al volver
-        });
-
-        btnEditar.addActionListener(e -> {
-            int filaSeleccionada = tablaDocumentos.getSelectedRow();
-            if (filaSeleccionada == -1) {
-                JOptionPane.showMessageDialog(this, "Selecciona un documento.");
-                return;
-            }
-            // Recuperar datos de la fila y abrir detalle...
-            // (Tu lógica de DialogDetalleDocumento se mantiene igual)
-        });
+    /**
+     * Busca el objeto Documento completo en la lista de inventario.
+     * @param fila Índice de la fila seleccionada en la tabla.
+     * @return El objeto Documento correspondiente al ID de la fila.
+     */
+    private Documento obtenerDocDesdeFila(int fila) {
+        int id = (int) modeloTabla.getValueAt(fila, 0);
+        return documentoService.listarInventario().stream()
+                .filter(d -> d.getIdDocumento() == id)
+                .findFirst()
+                .orElse(null);
     }
 
-    private JButton crearBoton(String texto, Color colorFondo) {
+    /**
+     * Configura los escuchadores de eventos para los botones de acción.
+     */
+    private void configurarEventos() {
+        // Evento Crear Nuevo
+        btnNuevo.addActionListener(e -> {
+            Window win = SwingUtilities.getWindowAncestor(this);
+            new DialogNuevoDocumento(win).setVisible(true);
+            llenarTablaDesdeBD();
+        });
+
+        // Evento Editar Existente
+        btnEditar.addActionListener(e -> {
+            int fila = tablaDocumentos.getSelectedRow();
+            if (fila == -1) {
+                JOptionPane.showMessageDialog(this, "Selecciona un documento de la tabla.");
+                return;
+            }
+            Documento doc = obtenerDocDesdeFila(fila);
+            if (doc != null) {
+                new DialogEditarDocumento(SwingUtilities.getWindowAncestor(this), doc).setVisible(true);
+                llenarTablaDesdeBD();
+            }
+        });
+
+        btnEliminar.addActionListener(e -> {
+        int fila = tablaDocumentos.getSelectedRow();
+        if (fila == -1) {
+            JOptionPane.showMessageDialog(this, "Por favor, seleccione un documento de la tabla.");
+            return;
+        }
+
+        // Obtener datos para el mensaje de confirmación
+        int id = (int) modeloTabla.getValueAt(fila, 0);
+        String titulo = (String) modeloTabla.getValueAt(fila, 2);
+
+        int respuesta = JOptionPane.showConfirmDialog(
+            this,
+            "¿Está seguro de que desea eliminar el documento: '" + titulo + "'?\nEsta acción no se puede deshacer.",
+            "Confirmar Eliminación",
+            JOptionPane.YES_NO_OPTION,
+            JOptionPane.WARNING_MESSAGE
+        );
+
+        if (respuesta == JOptionPane.YES_OPTION) {
+            if (documentoService.darDeBajaDocumento(id)) {
+                JOptionPane.showMessageDialog(this, "El documento ha sido eliminado con éxito.");
+                llenarTablaDesdeBD(); // Refrescar la tabla inmediatamente
+            } else {
+                JOptionPane.showMessageDialog(this, "No se pudo eliminar. Verifique si el documento está prestado.", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    });
+    }
+
+    /**
+     * Genera un botón con estilo uniforme.
+     * @param texto Etiqueta del botón.
+     * @param color Color de fondo.
+     * @return JButton configurado.
+     */
+    private JButton crearBoton(String texto, Color color) {
         JButton btn = new JButton(texto);
         btn.setFont(new Font("Segoe UI", Font.BOLD, 14));
         btn.setForeground(Color.WHITE);
-        btn.setBackground(colorFondo);
+        btn.setBackground(color);
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btn.setFocusPainted(false);
         return btn;
