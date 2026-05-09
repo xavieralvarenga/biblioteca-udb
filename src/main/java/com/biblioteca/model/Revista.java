@@ -29,7 +29,7 @@ public class Revista extends Documento {
     private String mesPublicacion;
 
     public Revista(int idDocumento, String issn, String volumen, String mesPublicacion) {
-        super();
+        super(idDocumento);
         this.issn = issn;
         this.volumen = volumen;
         this.mesPublicacion = mesPublicacion;

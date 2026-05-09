@@ -38,4 +38,13 @@ public abstract class Documento {
     @Column(length = 50)
     private String estado = "Disponible";
 
+    public Documento(Integer idDocumento) {
+        this.idDocumento = idDocumento;
+        this.tipoDocumento = tipoDocumento;
+        this.titulo = titulo;
+        this.autor = autor;
+        this.ubicacionFisica = ubicacionFisica;
+        this.codigoBarrasObra = codigoBarrasObra;
+        this.estado = estado;
+    }
 }
