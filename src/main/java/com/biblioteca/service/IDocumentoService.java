@@ -14,5 +14,12 @@ public interface IDocumentoService {
      */
     List<Documento> listarInventario();
 
-    // Aquí irán más adelante: actualizarDocumento y eliminarDocumento
+    /**
+     * Actualiza la información de un documento existente.
+     * @param doc Objeto documento con los cambios realizados por el usuario.
+     * @return true si la validación y la persistencia en base de datos fueron exitosas.
+     */
+    boolean actualizarDocumento(Documento doc);
+
+
 }
