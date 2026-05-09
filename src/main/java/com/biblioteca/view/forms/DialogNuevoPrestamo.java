@@ -169,20 +169,26 @@ public class DialogNuevoPrestamo extends JDialog {
             usuarioFinal = dialogBuscador.getUsuarioSeleccionado();
 
             if (usuarioFinal != null) {
+                // 1. Mostrar datos básicos
                 txtCarnet.setText(usuarioFinal.getCarnet() + " - " + usuarioFinal.getNombres());
                 lblNombreUsuario.setText("Lector: " + usuarioFinal.getNombres() + " " + usuarioFinal.getApellidos());
 
-                String textoMora = usuarioFinal.getEstadoMora() ? "Sí" : "No";
-                lblEstadoUsuario.setText("Rol: " + usuarioFinal.getTipoUsuario().getNombreRol() + " | Mora: " + textoMora);
-
+                // 2. Validación estricta de Mora
                 if (usuarioFinal.getEstadoMora()) {
-                    lblEstadoUsuario.setForeground(new Color(220, 53, 69)); // Rojo
-                    btnGuardar.setEnabled(false);
-                    JOptionPane.showMessageDialog(this, "Atención: El lector tiene mora activa. No puede realizar préstamos.", "Advertencia", JOptionPane.WARNING_MESSAGE);
-                } else {
-                    lblEstadoUsuario.setForeground(new Color(41, 171, 135)); // Verde
+                    // BLOQUEO TOTAL
+                    lblEstadoUsuario.setText("ESTADO: BLOQUEADO POR MORA");
+                    lblEstadoUsuario.setForeground(new Color(220, 53, 69)); // Rojo peligro
+                    btnGuardar.setEnabled(false); // Desactiva el botón de autorizar
 
-                    // --- AQUÍ HACEMOS EL CÁLCULO DE LAS FECHAS ---
+                    JOptionPane.showMessageDialog(this,
+                            "El usuario tiene deudas pendientes.\nDebe solventar su mora antes de solicitar nuevos materiales.",
+                            "Acceso Denegado", JOptionPane.ERROR_MESSAGE);
+                } else {
+                    // LECTOR SOLVENTE Y AUTORIZADO
+                    lblEstadoUsuario.setText("Rol: " + usuarioFinal.getTipoUsuario().getNombreRol() + " | Mora: No");
+                    lblEstadoUsuario.setForeground(new Color(41, 171, 135)); // Verde éxito
+
+                    // --- 3. CÁLCULO DE LAS FECHAS ---
                     DateTimeFormatter formato = DateTimeFormatter.ofPattern("dd/MM/yyyy");
                     fechaPrestamoFinal = LocalDate.now();
 
@@ -192,9 +198,10 @@ public class DialogNuevoPrestamo extends JDialog {
 
                     lblFechaPrestamo.setText(fechaPrestamoFinal.format(formato));
                     lblFechaLimite.setText(fechaLimiteFinal.format(formato));
-                    lblFechaLimite.setForeground(new Color(41, 171, 135)); // Pasamos de rojo a verde porque ya es válido
+                    lblFechaLimite.setForeground(new Color(41, 171, 135)); // Pasa a verde porque ya es válido
 
-                    // Si ya elegimos material válido, habilitamos el botón de guardar
+                    // 4. Verificación final cruzada
+                    // Si ya habíamos elegido un material válido previamente, habilitamos el botón de guardar
                     if (idEjemplarFinal != -1) {
                         btnGuardar.setEnabled(true);
                     }
