@@ -87,9 +87,7 @@ public class PrestamoDAO {
         return lista;
     }
 
-    /**
-     * Registra un nuevo préstamo MAESTRO con MÚLTIPLES DETALLES.
-     */
+
     public boolean registrarNuevoPrestamo(int idUsuario, java.time.LocalDate fechaPrestamo,
                                           List<Integer> idsEjemplares, List<java.time.LocalDate> fechasLimites) throws SQLException {
         Connection con = null;
@@ -329,11 +327,64 @@ public class PrestamoDAO {
     }
 
     /**
-     * Abonar a una mora existente en un detalle específico.
+     * Filtra los tickets (Cabeceras) por texto (carnet o nombre) y por estado general.
      */
-    /**
-     * Registra un pago a una deuda pendiente y actualiza la solvencia del usuario.
-     */
+    public List<Object[]> buscarPrestamosCabeceraConFiltro(String texto, String estado) {
+        List<Object[]> lista = new ArrayList<>();
+
+        StringBuilder sql = new StringBuilder(
+                "SELECT p.id_prestamo, u.carnet_docente_alumno, u.Nombres, u.Apellidos, p.fecha_prestamo, p.estado_general, " +
+                        "(SELECT COUNT(*) FROM Detalle_Prestamo dp WHERE dp.id_prestamo = p.id_prestamo) AS total_items " +
+                        "FROM Prestamo p " +
+                        "INNER JOIN Usuarios u ON p.id_usuario = u.ID_Usuario " +
+                        "WHERE 1=1"
+        );
+
+        // 1. Aplicar filtro de estado si no es "Todos"
+        if (estado != null && !estado.equals("Todos")) {
+            sql.append(" AND p.estado_general = ?");
+        }
+
+        // 2. Aplicar filtro de texto (Carnet, Nombres o Apellidos)
+        if (texto != null && !texto.trim().isEmpty()) {
+            sql.append(" AND (u.carnet_docente_alumno LIKE ? OR u.Nombres LIKE ? OR u.Apellidos LIKE ?)");
+        }
+
+        sql.append(" ORDER BY p.id_prestamo DESC");
+
+        try (Connection con = DatabaseConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql.toString())) {
+
+            int paramIndex = 1; // Índice dinámico para los parámetros preparados
+
+            if (estado != null && !estado.equals("Todos")) {
+                ps.setString(paramIndex++, estado);
+            }
+
+            if (texto != null && !texto.trim().isEmpty()) {
+                String search = "%" + texto.trim() + "%";
+                ps.setString(paramIndex++, search);
+                ps.setString(paramIndex++, search);
+                ps.setString(paramIndex++, search);
+            }
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    lista.add(new Object[]{
+                            rs.getInt("id_prestamo"),
+                            rs.getString("carnet_docente_alumno"),
+                            rs.getString("Nombres") + " " + rs.getString("Apellidos"),
+                            rs.getDate("fecha_prestamo"),
+                            rs.getInt("total_items"),
+                            rs.getString("estado_general")
+                    });
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Error al filtrar cabeceras: " + e.getMessage());
+        }
+        return lista;
+    }
     public boolean abonarMora(int idDetalle, int idUsuario, double montoAbono) throws SQLException {
         Connection con = null;
         try {

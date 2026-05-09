@@ -43,6 +43,7 @@ public class PrestamoService {
         return prestamoDAO.buscarPrestamosConFiltro(texto, estado, estadoPago);
     }
 
+
     // Fíjate que aquí recibimos Listas para el "Carrito"
     public boolean registrarNuevoPrestamo(int idUsuario, LocalDate fechaPrestamo,
                                           List<Integer> idsEjemplares, List<LocalDate> fechasLimites) throws SQLException {
@@ -79,5 +80,9 @@ public class PrestamoService {
 
     public boolean cambiarEjemplar(int idDetalle, int idEjemplarAntiguo, int idEjemplarNuevo) throws SQLException {
         return prestamoDAO.cambiarEjemplar(idDetalle, idEjemplarAntiguo, idEjemplarNuevo);
+    }
+
+    public List<Object[]> buscarPrestamosCabeceraConFiltro(String texto, String estado) {
+        return prestamoDAO.buscarPrestamosCabeceraConFiltro(texto, estado);
     }
 }

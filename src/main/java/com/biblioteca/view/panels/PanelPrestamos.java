@@ -138,8 +138,26 @@ public class PanelPrestamos extends JPanel {
             JOptionPane.showMessageDialog(this, "Error al cargar la tabla: " + e.getMessage());
         }
     }
+    private void filtrarDatos() {
+        String texto = txtBuscar.getText().trim();
+        String estado = (String) cbxFiltroEstado.getSelectedItem();
+
+        modeloTabla.setRowCount(0); // Limpiar la tabla
+
+        try {
+            List<Object[]> listaFiltrada = prestamoService.buscarPrestamosCabeceraConFiltro(texto, estado);
+            for (Object[] fila : listaFiltrada) {
+                modeloTabla.addRow(fila);
+            }
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Error al filtrar la tabla: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
 
     private void configurarEventos() {
+        btnBuscar.addActionListener(e -> filtrarDatos());
+        txtBuscar.addActionListener(e -> filtrarDatos()); // Al presionar Enter en la caja de texto
+        cbxFiltroEstado.addActionListener(e -> filtrarDatos());
         // Al darle clic recargamos la info para asegurar que los estados sean frescos
         btnBuscar.addActionListener(e -> cargarPrestamosDesdeBD());
 
