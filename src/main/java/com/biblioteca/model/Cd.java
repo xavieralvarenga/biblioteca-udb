@@ -24,7 +24,7 @@ public class Cd extends Documento {
     private String tipoContenido;
 
     public Cd(int idDocumento, int duracionMinutos, String tipoContenido) {
-        super();
+        super(idDocumento);
         this.duracionMinutos = duracionMinutos;
         this.tipoContenido = tipoContenido;
     }

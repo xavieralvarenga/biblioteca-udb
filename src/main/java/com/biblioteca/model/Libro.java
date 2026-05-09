@@ -22,7 +22,7 @@ public class Libro extends Documento {
 
     // Constructor sin argumentos requerido por JPA
     public Libro(int idDocumento, String isbn, String editorial, String edicion) {
-        super();
+        super(idDocumento);
         this.isbn = isbn;
         this.editorial = editorial;
         this.edicion = edicion;
