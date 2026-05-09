@@ -212,5 +212,58 @@ public class DocumentoDAO implements IDocumentoDAO {
         }
     }
 
-    @Override public boolean eliminar(int id) { return false; }
+    /**
+     * Elimina un documento de la base de datos de forma permanente.
+     * Realiza un borrado en cascada manual dentro de una transacción.
+     * * @param id El identificador único del documento a eliminar.
+     * @return true si el borrado fue exitoso en todas las tablas involucradas.
+     */
+    @Override
+    public boolean eliminar(int id) {
+        // Queries para limpiar tablas hijas y luego la tabla padre
+        String sqlHijoLibro = "DELETE FROM Libro WHERE id_documento = ?";
+        String sqlHijoRevista = "DELETE FROM Revista WHERE id_documento = ?";
+        String sqlHijoCD = "DELETE FROM CD WHERE id_documento = ?";
+        String sqlPadre = "DELETE FROM Documento WHERE id_documento = ?";
+
+        try {
+            connection.setAutoCommit(false);
+
+            // Intentamos borrar de todas las posibles tablas hijas (solo una tendrá éxito)
+            try (PreparedStatement psL = connection.prepareStatement(sqlHijoLibro);
+                 PreparedStatement psR = connection.prepareStatement(sqlHijoRevista);
+                 PreparedStatement psC = connection.prepareStatement(sqlHijoCD)) {
+
+                psL.setInt(1, id);
+                psL.executeUpdate();
+
+                psR.setInt(1, id);
+                psR.executeUpdate();
+
+                psC.setInt(1, id);
+                psC.executeUpdate();
+            }
+
+            // Finalmente borramos el registro padre
+            try (PreparedStatement psP = connection.prepareStatement(sqlPadre)) {
+                psP.setInt(1, id);
+                int filasAfectadas = psP.executeUpdate();
+
+                if (filasAfectadas > 0) {
+                    connection.commit();
+                    return true;
+                }
+            }
+
+            connection.rollback();
+            return false;
+
+        } catch (SQLException e) {
+            try { connection.rollback(); } catch (SQLException ex) { ex.printStackTrace(); }
+            System.err.println("Error al eliminar documento: " + e.getMessage());
+            return false;
+        } finally {
+            try { connection.setAutoCommit(true); } catch (SQLException e) { e.printStackTrace(); }
+        }
+    }
 }

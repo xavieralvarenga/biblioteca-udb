@@ -21,5 +21,10 @@ public interface IDocumentoService {
      */
     boolean actualizarDocumento(Documento doc);
 
-
+    /**
+     * Gestiona la eliminación de un documento del sistema.
+     * @param id El identificador único del documento que se desea eliminar.
+     * @return true si el documento pudo ser eliminado (siempre que no tenga restricciones como préstamos activos).
+     */
+    boolean darDeBajaDocumento(int id);
 }

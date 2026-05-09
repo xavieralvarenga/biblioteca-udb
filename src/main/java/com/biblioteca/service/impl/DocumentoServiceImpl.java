@@ -54,4 +54,30 @@ public class DocumentoServiceImpl implements IDocumentoService {
         // Si pasa las validaciones, delegamos la persistencia al DAO
         return documentoDAO.actualizar(doc);
     }
+
+    /**
+     * Lógica de negocio para la eliminación de documentos.
+     * Verifica el estado del documento antes de proceder con el borrado.
+     * * @param id ID del documento a dar de baja.
+     * @return true si el documento se eliminó satisfactoriamente.
+     */
+    @Override
+    public boolean darDeBajaDocumento(int id) {
+        // 1. Obtener el documento para verificar su estado (puedes listar y filtrar)
+        Documento doc = listarInventario().stream()
+                .filter(d -> d.getIdDocumento() == id)
+                .findFirst()
+                .orElse(null);
+
+        if (doc == null) return false;
+
+        // 2. Regla de negocio: No eliminar si está prestado
+        if ("Prestado".equalsIgnoreCase(doc.getEstado())) {
+            System.err.println("No se puede eliminar un documento que está actualmente prestado.");
+            return false;
+        }
+
+        // 3. Proceder al DAO
+        return documentoDAO.eliminar(id);
+    }
 }

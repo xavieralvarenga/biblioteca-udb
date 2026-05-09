@@ -171,21 +171,34 @@ public class PanelInventario extends JPanel {
             }
         });
 
-//        // Evento Eliminar
-//        btnEliminar.addActionListener(e -> {
-//            int fila = tablaDocumentos.getSelectedRow();
-//            if (fila == -1) return;
-//
-//            int id = (int) modeloTabla.getValueAt(fila, 0);
-//            int confirm = JOptionPane.showConfirmDialog(this, "¿Seguro que desea eliminar el ID " + id + "?");
-//
-//            if (confirm == JOptionPane.YES_OPTION) {
-//                if (documentoService.darDeBajaDocumento(id)) {
-//                    JOptionPane.showMessageDialog(this, "Documento eliminado.");
-//                    llenarTablaDesdeBD();
-//                }
-//            }
-//        });
+        btnEliminar.addActionListener(e -> {
+        int fila = tablaDocumentos.getSelectedRow();
+        if (fila == -1) {
+            JOptionPane.showMessageDialog(this, "Por favor, seleccione un documento de la tabla.");
+            return;
+        }
+
+        // Obtener datos para el mensaje de confirmación
+        int id = (int) modeloTabla.getValueAt(fila, 0);
+        String titulo = (String) modeloTabla.getValueAt(fila, 2);
+
+        int respuesta = JOptionPane.showConfirmDialog(
+            this,
+            "¿Está seguro de que desea eliminar el documento: '" + titulo + "'?\nEsta acción no se puede deshacer.",
+            "Confirmar Eliminación",
+            JOptionPane.YES_NO_OPTION,
+            JOptionPane.WARNING_MESSAGE
+        );
+
+        if (respuesta == JOptionPane.YES_OPTION) {
+            if (documentoService.darDeBajaDocumento(id)) {
+                JOptionPane.showMessageDialog(this, "El documento ha sido eliminado con éxito.");
+                llenarTablaDesdeBD(); // Refrescar la tabla inmediatamente
+            } else {
+                JOptionPane.showMessageDialog(this, "No se pudo eliminar. Verifique si el documento está prestado.", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    });
     }
 
     /**
