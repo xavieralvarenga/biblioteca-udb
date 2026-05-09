@@ -1,259 +1,249 @@
 package com.biblioteca.view.forms;
 
 import com.biblioteca.model.Usuario;
+import com.biblioteca.service.PrestamoService;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.TitledBorder;
+import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 
 public class DialogNuevoPrestamo extends JDialog {
 
-    // Componentes del Usuario
+    private Usuario usuarioFinal = null;
+
+    // Listas en memoria para nuestro "Carrito"
+    private List<Integer> idsEjemplaresCarrito = new ArrayList<>();
+    private List<LocalDate> fechasLimitesCarrito = new ArrayList<>();
+
     private JTextField txtCarnet;
-    private JButton btnBuscarUsuario;
-    private JLabel lblNombreUsuario, lblEstadoUsuario;
+    private JLabel lblNombreUsuario, lblEstadoUsuario, lblFechaPrestamo;
+    private JButton btnBuscarUsuario, btnBuscarEjemplar, btnQuitarEjemplar, btnGuardar, btnCancelar;
 
-    // Componentes del Material
-    private JTextField txtCodigoBarras;
-    private JButton btnBuscarEjemplar;
-    private JLabel lblTituloMaterial, lblEstadoMaterial;
+    private JTable tablaCarrito;
+    private DefaultTableModel modeloCarrito;
 
-    // Variables para almacenar las selecciones para enviarlas a MySQL
-    private com.biblioteca.model.Usuario usuarioFinal = null;
-    private int idEjemplarFinal = -1;
-    private LocalDate fechaPrestamoFinal;
-    private LocalDate fechaLimiteFinal;
-    // Componentes de Resumen
-    private JLabel lblFechaPrestamo, lblFechaLimite;
-    private JButton btnCancelar, btnGuardar;
+    private final PrestamoService prestamoService;
 
     public DialogNuevoPrestamo(Window owner) {
-        super(owner, "Registrar Nuevo Préstamo", ModalityType.APPLICATION_MODAL);
-        setSize(550, 550);
+        super(owner, "Registrar Nuevo Préstamo (Múltiples Materiales)", ModalityType.APPLICATION_MODAL);
+        this.prestamoService = new PrestamoService();
+
+        setSize(750, 600); // Ventana un poco más grande para acomodar la tabla
         setLocationRelativeTo(owner);
-        setResizable(false);
-        setLayout(new BorderLayout());
+        setLayout(new BorderLayout(10, 10));
 
         JPanel mainPanel = new JPanel();
         mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
-        mainPanel.setBorder(new EmptyBorder(15, 20, 15, 20));
+        mainPanel.setBorder(new EmptyBorder(15, 15, 15, 15));
         mainPanel.setBackground(Color.WHITE);
 
-        // --- 1. SECCIÓN: DATOS DEL LECTOR ---
-        JPanel panelUsuario = crearPanelSeccion("1. Datos del Lector");
+        // --- 1. SECCIÓN: LECTOR ---
+        JPanel panelLector = new JPanel(new BorderLayout(5, 5));
+        panelLector.setBackground(Color.WHITE);
+        panelLector.setBorder(BorderFactory.createTitledBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY), "1. Datos del Lector", TitledBorder.LEFT, TitledBorder.TOP, new Font("Segoe UI", Font.BOLD, 14), new Color(61, 90, 128)));
 
-        JPanel panelBusquedaU = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
-        panelBusquedaU.setBackground(Color.WHITE);
-        // ... (dentro de tu constructor, en la sección 1) ...
-        panelBusquedaU.add(new JLabel("Lector Seleccionado:"));
-        txtCarnet = new JTextField(20); // Lo hacemos más grande
-        txtCarnet.setEditable(false); // NO SE PUEDE ESCRIBIR DIRECTO
-        txtCarnet.setBackground(new Color(240, 240, 240)); // Gris claro para indicar que está bloqueado
+        JPanel pnlBuscadorUser = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        pnlBuscadorUser.setBackground(Color.WHITE);
+        pnlBuscadorUser.add(new JLabel("Lector Seleccionado: "));
+        txtCarnet = new JTextField(20);
+        txtCarnet.setEditable(false);
+        pnlBuscadorUser.add(txtCarnet);
 
-        btnBuscarUsuario = new JButton("🔍 Buscar en Lista"); // Cambiamos el texto
+        btnBuscarUsuario = new JButton("Buscar Lector");
+        pnlBuscadorUser.add(btnBuscarUsuario);
+        panelLector.add(pnlBuscadorUser, BorderLayout.NORTH);
 
-        panelBusquedaU.add(txtCarnet);
-        panelBusquedaU.add(btnBuscarUsuario);
-        // ...
+        JPanel pnlInfoUser = new JPanel(new GridLayout(2, 1, 5, 5));
+        pnlInfoUser.setBackground(Color.WHITE);
+        pnlInfoUser.setBorder(new EmptyBorder(5, 10, 5, 10));
+        lblNombreUsuario = new JLabel("Lector: [Esperando selección]");
+        lblNombreUsuario.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        lblEstadoUsuario = new JLabel("Rol: - | Mora: - | Libros Permitidos: -");
+        pnlInfoUser.add(lblNombreUsuario);
+        pnlInfoUser.add(lblEstadoUsuario);
+        panelLector.add(pnlInfoUser, BorderLayout.CENTER);
 
-        JPanel panelInfoU = new JPanel(new GridLayout(2, 1, 5, 5));
-        panelInfoU.setBackground(Color.WHITE);
-        lblNombreUsuario = new JLabel("Lector: [Esperando búsqueda...]");
-        lblEstadoUsuario = new JLabel("Estado: -");
-        lblNombreUsuario.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        panelInfoU.add(lblNombreUsuario);
-        panelInfoU.add(lblEstadoUsuario);
+        mainPanel.add(panelLector);
+        mainPanel.add(Box.createVerticalStrut(15));
 
-        panelUsuario.add(panelBusquedaU);
-        panelUsuario.add(panelInfoU);
-        mainPanel.add(panelUsuario);
-        mainPanel.add(Box.createRigidArea(new Dimension(0, 15))); // Espaciador
+        // --- 2. SECCIÓN: CARRITO DE MATERIALES ---
+        JPanel panelMateriales = new JPanel(new BorderLayout(5, 5));
+        panelMateriales.setBackground(Color.WHITE);
+        panelMateriales.setBorder(BorderFactory.createTitledBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY), "2. Materiales a Prestar (Carrito)", TitledBorder.LEFT, TitledBorder.TOP, new Font("Segoe UI", Font.BOLD, 14), new Color(61, 90, 128)));
 
-        // --- 2. SECCIÓN: DATOS DEL MATERIAL ---
-        JPanel panelMaterial = crearPanelSeccion("2. Datos del Material (Ejemplar)");
+        JPanel pnlBotonesCarrito = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        pnlBotonesCarrito.setBackground(Color.WHITE);
+        btnBuscarEjemplar = new JButton("Agregar Material");
+        btnBuscarEjemplar.setEnabled(false); // Se habilita al elegir lector
+        btnQuitarEjemplar = new JButton("Quitar Seleccionado");
+        btnQuitarEjemplar.setEnabled(false);
+        pnlBotonesCarrito.add(btnBuscarEjemplar);
+        pnlBotonesCarrito.add(btnQuitarEjemplar);
+        panelMateriales.add(pnlBotonesCarrito, BorderLayout.NORTH);
 
-        JPanel panelBusquedaM = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
-        panelBusquedaM.setBackground(Color.WHITE);
-        panelBusquedaM.add(new JLabel("Material Seleccionado:"));
-        txtCodigoBarras = new JTextField(20);
-        txtCodigoBarras.setEditable(false); // NO SE PUEDE ESCRIBIR DIRECTO
-        txtCodigoBarras.setBackground(new Color(240, 240, 240));
+        String[] columnas = {"ID", "Cód. Barras", "Título", "Estado Físico", "Devolución Estimada"};
+        modeloCarrito = new DefaultTableModel(columnas, 0) {
+            public boolean isCellEditable(int row, int column) { return false; }
+        };
+        tablaCarrito = new JTable(modeloCarrito);
+        tablaCarrito.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        JScrollPane scrollCarrito = new JScrollPane(tablaCarrito);
+        scrollCarrito.setPreferredSize(new Dimension(700, 150));
+        panelMateriales.add(scrollCarrito, BorderLayout.CENTER);
 
-        btnBuscarEjemplar = new JButton("🔍 Buscar en Lista");
+        mainPanel.add(panelMateriales);
+        mainPanel.add(Box.createVerticalStrut(15));
 
-        panelBusquedaM.add(txtCodigoBarras);
-        panelBusquedaM.add(btnBuscarEjemplar);
+        // --- 3. SECCIÓN: RESUMEN Y BOTONES ---
+        JPanel panelSur = new JPanel(new BorderLayout());
+        panelSur.setBackground(Color.WHITE);
 
-        JPanel panelInfoM = new JPanel(new GridLayout(2, 1, 5, 5));
-        panelInfoM.setBackground(Color.WHITE);
-        lblTituloMaterial = new JLabel("Título: [Esperando búsqueda...]");
-        lblEstadoMaterial = new JLabel("Disponibilidad: -");
-        lblTituloMaterial.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        panelInfoM.add(lblTituloMaterial);
-        panelInfoM.add(lblEstadoMaterial);
-
-        panelMaterial.add(panelBusquedaM);
-        panelMaterial.add(panelInfoM);
-        mainPanel.add(panelMaterial);
-        mainPanel.add(Box.createRigidArea(new Dimension(0, 15)));
-
-        // --- 3. SECCIÓN: RESUMEN DEL PRÉSTAMO ---
-        JPanel panelResumen = crearPanelSeccion("3. Resumen de Fechas");
-        JPanel panelFechas = new JPanel(new GridLayout(2, 2, 10, 10));
-        panelFechas.setBackground(Color.WHITE);
-
-        DateTimeFormatter formato = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-        String fechaHoy = LocalDate.now().format(formato);
-
-        panelFechas.add(new JLabel("Fecha de Préstamo:"));
-        lblFechaPrestamo = new JLabel(fechaHoy);
+        JPanel pnlFecha = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        pnlFecha.setBackground(Color.WHITE);
+        lblFechaPrestamo = new JLabel("Fecha de Operación: " + LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
         lblFechaPrestamo.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        lblFechaPrestamo.setForeground(new Color(61, 90, 128));
+        pnlFecha.add(lblFechaPrestamo);
+        panelSur.add(pnlFecha, BorderLayout.WEST);
 
-        panelFechas.add(new JLabel("Fecha Límite (Estimada):"));
-        lblFechaLimite = new JLabel("Calculando...");
-        lblFechaLimite.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        lblFechaLimite.setForeground(new Color(220, 53, 69));
-
-        panelFechas.add(lblFechaPrestamo);
-        panelFechas.add(lblFechaLimite);
-        panelResumen.add(panelFechas);
-        mainPanel.add(panelResumen);
-
-        add(mainPanel, BorderLayout.CENTER);
-
-        // --- 4. BOTONES DE ACCIÓN (Sur) ---
-        JPanel panelBotones = new JPanel(new FlowLayout(FlowLayout.RIGHT, 15, 10));
-        panelBotones.setBackground(Color.WHITE);
-
+        JPanel pnlBotonesAccion = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        pnlBotonesAccion.setBackground(Color.WHITE);
         btnCancelar = new JButton("Cancelar");
-        btnCancelar.setBackground(new Color(231, 111, 81));
-        btnCancelar.setForeground(Color.WHITE);
-
         btnGuardar = new JButton("Autorizar Préstamo");
         btnGuardar.setBackground(new Color(41, 171, 135));
         btnGuardar.setForeground(Color.WHITE);
-        btnGuardar.setEnabled(false); // Desactivado hasta que todo sea válido
+        btnGuardar.setEnabled(false); // Se habilita si hay items en el carrito
 
-        panelBotones.add(btnCancelar);
-        panelBotones.add(btnGuardar);
-        add(panelBotones, BorderLayout.SOUTH);
+        pnlBotonesAccion.add(btnCancelar);
+        pnlBotonesAccion.add(btnGuardar);
+        panelSur.add(pnlBotonesAccion, BorderLayout.EAST);
 
-        // Eventos
+        add(mainPanel, BorderLayout.CENTER);
+        add(panelSur, BorderLayout.SOUTH);
+
         configurarEventos();
-    }
-
-    private JPanel crearPanelSeccion(String titulo) {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBackground(Color.WHITE);
-        panel.setBorder(BorderFactory.createTitledBorder(
-                BorderFactory.createLineBorder(Color.LIGHT_GRAY),
-                titulo, TitledBorder.LEFT, TitledBorder.TOP,
-                new Font("Segoe UI", Font.BOLD, 14), new Color(61, 90, 128)
-        ));
-        return panel;
     }
 
     private void configurarEventos() {
         btnCancelar.addActionListener(e -> this.dispose());
 
-        // --- BÚSQUEDA Y CÁLCULO DE LECTOR ---
+        // --- SELECCIONAR LECTOR ---
         btnBuscarUsuario.addActionListener(e -> {
-            DialogBuscarUsuario dialogBuscador = new DialogBuscarUsuario(this);
-            dialogBuscador.setVisible(true);
+            DialogBuscarUsuario dialog = new DialogBuscarUsuario(this);
+            dialog.setVisible(true);
 
-            usuarioFinal = dialogBuscador.getUsuarioSeleccionado();
+            Usuario tempUser = dialog.getUsuarioSeleccionado();
+            if (tempUser != null) {
+                if (tempUser.getEstadoMora()) {
+                    JOptionPane.showMessageDialog(this, "El lector tiene mora activa. No puede realizar préstamos.", "Bloqueado", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
 
-            if (usuarioFinal != null) {
-                // 1. Mostrar datos básicos
+                // Si cambiamos de usuario, limpiamos el carrito por seguridad
+                if (usuarioFinal != null && usuarioFinal.getIdUsuario() != tempUser.getIdUsuario()) {
+                    modeloCarrito.setRowCount(0);
+                    idsEjemplaresCarrito.clear();
+                    fechasLimitesCarrito.clear();
+                    btnGuardar.setEnabled(false);
+                }
+
+                usuarioFinal = tempUser;
                 txtCarnet.setText(usuarioFinal.getCarnet() + " - " + usuarioFinal.getNombres());
                 lblNombreUsuario.setText("Lector: " + usuarioFinal.getNombres() + " " + usuarioFinal.getApellidos());
+                lblEstadoUsuario.setText("Rol: " + usuarioFinal.getTipoUsuario().getNombreRol() +
+                        " | Libros Permitidos: " + usuarioFinal.getTipoUsuario().getMaxLibrosPermitidos());
+                lblEstadoUsuario.setForeground(new Color(41, 171, 135));
 
-                // 2. Validación estricta de Mora
-                if (usuarioFinal.getEstadoMora()) {
-                    // BLOQUEO TOTAL
-                    lblEstadoUsuario.setText("ESTADO: BLOQUEADO POR MORA");
-                    lblEstadoUsuario.setForeground(new Color(220, 53, 69)); // Rojo peligro
-                    btnGuardar.setEnabled(false); // Desactiva el botón de autorizar
-
-                    JOptionPane.showMessageDialog(this,
-                            "El usuario tiene deudas pendientes.\nDebe solventar su mora antes de solicitar nuevos materiales.",
-                            "Acceso Denegado", JOptionPane.ERROR_MESSAGE);
-                } else {
-                    // LECTOR SOLVENTE Y AUTORIZADO
-                    lblEstadoUsuario.setText("Rol: " + usuarioFinal.getTipoUsuario().getNombreRol() + " | Mora: No");
-                    lblEstadoUsuario.setForeground(new Color(41, 171, 135)); // Verde éxito
-
-                    // --- 3. CÁLCULO DE LAS FECHAS ---
-                    DateTimeFormatter formato = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-                    fechaPrestamoFinal = LocalDate.now();
-
-                    // Sumamos los días que le permite su rol (ej. 7 días para alumnos, 14 para profesores)
-                    int diasPermitidos = usuarioFinal.getTipoUsuario().getMaxDiasPrestamo();
-                    fechaLimiteFinal = fechaPrestamoFinal.plusDays(diasPermitidos);
-
-                    lblFechaPrestamo.setText(fechaPrestamoFinal.format(formato));
-                    lblFechaLimite.setText(fechaLimiteFinal.format(formato));
-                    lblFechaLimite.setForeground(new Color(41, 171, 135)); // Pasa a verde porque ya es válido
-
-                    // 4. Verificación final cruzada
-                    // Si ya habíamos elegido un material válido previamente, habilitamos el botón de guardar
-                    if (idEjemplarFinal != -1) {
-                        btnGuardar.setEnabled(true);
-                    }
-                }
+                btnBuscarEjemplar.setEnabled(true);
             }
         });
 
-        // --- BÚSQUEDA DE MATERIAL ---
+        // --- AGREGAR AL CARRITO ---
         btnBuscarEjemplar.addActionListener(e -> {
-            DialogBuscarEjemplar dialogBuscador = new DialogBuscarEjemplar(this);
-            dialogBuscador.setVisible(true);
+            // Validación de límite
+            if (idsEjemplaresCarrito.size() >= usuarioFinal.getTipoUsuario().getMaxLibrosPermitidos()) {
+                JOptionPane.showMessageDialog(this, "El usuario ya alcanzó el límite máximo de libros permitidos (" + usuarioFinal.getTipoUsuario().getMaxLibrosPermitidos() + ").", "Límite Alcanzado", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
 
-            String codBarras = dialogBuscador.getCodigoBarrasSeleccionado();
+            DialogBuscarEjemplar dialog = new DialogBuscarEjemplar(this);
+            dialog.setVisible(true);
 
-            if (codBarras != null) {
-                idEjemplarFinal = dialogBuscador.getIdEjemplarSeleccionado();
-                String estado = dialogBuscador.getEstadoSeleccionado();
+            int idEjemplar = dialog.getIdEjemplarSeleccionado();
+            if (idEjemplar != -1) {
+                String estadoFisico = dialog.getEstadoSeleccionado();
 
-                txtCodigoBarras.setText(codBarras);
-                lblTituloMaterial.setText("Título: " + dialogBuscador.getTituloSeleccionado());
-                lblEstadoMaterial.setText("Disponibilidad: " + estado);
+                if (!"Disponible".equalsIgnoreCase(estadoFisico)) {
+                    JOptionPane.showMessageDialog(this, "El material seleccionado está: " + estadoFisico, "No Disponible", JOptionPane.WARNING_MESSAGE);
+                    return;
+                }
 
-                if (!"Disponible".equalsIgnoreCase(estado)) {
-                    lblEstadoMaterial.setForeground(new Color(220, 53, 69));
+                if (idsEjemplaresCarrito.contains(idEjemplar)) {
+                    JOptionPane.showMessageDialog(this, "Este material ya está en el carrito.", "Duplicado", JOptionPane.WARNING_MESSAGE);
+                    return;
+                }
+
+                // Calcular fecha límite para este ítem específico
+                int diasPermitidos = usuarioFinal.getTipoUsuario().getMaxDiasPrestamo();
+                LocalDate fechaLimite = LocalDate.now().plusDays(diasPermitidos);
+
+                // Agregar a memoria
+                idsEjemplaresCarrito.add(idEjemplar);
+                fechasLimitesCarrito.add(fechaLimite);
+
+                // Agregar a la tabla visual
+                modeloCarrito.addRow(new Object[]{
+                        idEjemplar,
+                        dialog.getCodigoBarrasSeleccionado(),
+                        dialog.getTituloSeleccionado(),
+                        estadoFisico,
+                        fechaLimite.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                });
+
+                btnGuardar.setEnabled(true);
+            }
+        });
+
+        // --- ACTIVAR BOTÓN QUITAR ---
+        tablaCarrito.getSelectionModel().addListSelectionListener(e -> {
+            btnQuitarEjemplar.setEnabled(tablaCarrito.getSelectedRow() != -1);
+        });
+
+        // --- QUITAR DEL CARRITO ---
+        btnQuitarEjemplar.addActionListener(e -> {
+            int fila = tablaCarrito.getSelectedRow();
+            if (fila != -1) {
+                idsEjemplaresCarrito.remove(fila);
+                fechasLimitesCarrito.remove(fila);
+                modeloCarrito.removeRow(fila);
+
+                if (idsEjemplaresCarrito.isEmpty()) {
                     btnGuardar.setEnabled(false);
-                    idEjemplarFinal = -1; // Invalidamos la selección
-                    JOptionPane.showMessageDialog(this, "Este material está '" + estado + "'.", "No Disponible", JOptionPane.WARNING_MESSAGE);
-                } else {
-                    lblEstadoMaterial.setForeground(new Color(41, 171, 135));
-
-                    // Si ya elegimos un lector válido (sin mora), habilitamos el botón de guardar
-                    if (usuarioFinal != null && !usuarioFinal.getEstadoMora()) {
-                        btnGuardar.setEnabled(true);
-                    }
                 }
             }
         });
 
-        // --- GUARDADO FINAL DEL PRÉSTAMO ---
+        // --- PROCESAR PRÉSTAMO MÚLTIPLE ---
         btnGuardar.addActionListener(e -> {
             try {
-                com.biblioteca.repository.impl.PrestamoDAO dao = new com.biblioteca.repository.impl.PrestamoDAO();
-
-                // Ejecutamos la transacción SQL
-                boolean exito = dao.registrarNuevoPrestamo(usuarioFinal.getIdUsuario(), idEjemplarFinal, fechaPrestamoFinal, fechaLimiteFinal);
+                boolean exito = prestamoService.registrarNuevoPrestamo(
+                        usuarioFinal.getIdUsuario(),
+                        LocalDate.now(),
+                        idsEjemplaresCarrito,
+                        fechasLimitesCarrito
+                );
 
                 if(exito) {
-                    JOptionPane.showMessageDialog(this, "¡Préstamo autorizado y guardado exitosamente!", "Éxito", JOptionPane.INFORMATION_MESSAGE);
-                    this.dispose(); // Cerramos la ventana
+                    JOptionPane.showMessageDialog(this, "¡Préstamo autorizado para " + idsEjemplaresCarrito.size() + " material(es)!", "Éxito", JOptionPane.INFORMATION_MESSAGE);
+                    this.dispose();
                 }
             } catch (Exception ex) {
-                JOptionPane.showMessageDialog(this, "Error crítico al guardar el préstamo:\n" + ex.getMessage(), "Error de Base de Datos", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(this, "Error al guardar:\n" + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
             }
         });
     }

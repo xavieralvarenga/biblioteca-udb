@@ -4,7 +4,8 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.*;
 import java.time.LocalDate;
-import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 
 @Data
 @Entity
@@ -13,6 +14,7 @@ public class Prestamo {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id_prestamo")
     private Integer idPrestamo;
 
     @NotNull(message = "El usuario es obligatorio")
@@ -20,28 +22,15 @@ public class Prestamo {
     @JoinColumn(name = "id_usuario", nullable = false)
     private Usuario usuario;
 
-    @NotNull(message = "El ejemplar es obligatorio")
-    @ManyToOne
-    @JoinColumn(name = "id_ejemplar", nullable = false)
-    private Ejemplar ejemplar;
-
-    @NotNull(message = "La fecha de préstamo no puede ser nula")
+    @NotNull(message = "La fecha de préstamo es obligatoria")
     @Column(name = "fecha_prestamo", nullable = false)
     private LocalDate fechaPrestamo;
 
-    @NotNull(message = "La fecha límite no puede ser nula")
-    @FutureOrPresent(message = "La fecha límite debe ser hoy o a futuro") // Validación de tiempo
-    @Column(name = "fecha_limite", nullable = false)
-    private LocalDate fechaLimite;
+    @Column(name = "estado_general", length = 20)
+    private String estadoGeneral = "Activo";
 
-    @Column(name = "estado_prestamo", length = 20)
-    private String estadoPrestamo = "Activo";
-
-    // Campos de Mora (Pueden ser nulos al inicio)
-    private Integer diasRetraso;
-
-    @DecimalMin(value = "0.0")
-    private BigDecimal montoCalculado;
-
-    private String estadoPago;
+    // Relación uno a muchos: Un préstamo tiene muchos detalles (libros, revistas, etc.)
+    @OneToMany(mappedBy = "prestamo", cascade = CascadeType.ALL, orphanRemoval = true)
+    @ToString.Exclude // Evita bucles infinitos en el método toString de Lombok
+    private List<DetallePrestamo> detalles = new ArrayList<>();
 }

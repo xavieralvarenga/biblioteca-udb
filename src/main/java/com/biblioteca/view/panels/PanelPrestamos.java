@@ -1,10 +1,15 @@
 package com.biblioteca.view.panels;
 
+import com.biblioteca.service.PrestamoService;
+import com.biblioteca.view.forms.DialogDetallePrestamo;
+import com.biblioteca.view.forms.DialogNuevoPrestamo;
+
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.util.List;
 
 public class PanelPrestamos extends JPanel {
 
@@ -12,20 +17,23 @@ public class PanelPrestamos extends JPanel {
     private DefaultTableModel modeloTabla;
     private JTextField txtBuscar;
     private JComboBox<String> cbxFiltroEstado;
-    private JComboBox<String> cbxFiltroPago;
-    private JButton btnNuevoPrestamo, btnDevolucion, btnVerDetalles;
-    private JButton btnBuscar;
+    // Eliminamos cbxFiltroPago porque los pagos se ven adentro del detalle
+    private JButton btnNuevoPrestamo, btnVerDetalles, btnBuscar, btnEditarLector;
+
+    private final PrestamoService prestamoService;
 
     public PanelPrestamos() {
+        this.prestamoService = new PrestamoService();
+
         setLayout(new BorderLayout(10, 10));
         setBackground(Color.WHITE);
         setBorder(new EmptyBorder(20, 20, 20, 20));
 
-        // --- 1. TÍTULO Y BARRA DE BÚSQUEDA (Norte) ---
+        // --- 1. TÍTULO Y BARRA DE BÚSQUEDA ---
         JPanel panelNorte = new JPanel(new BorderLayout(10, 10));
         panelNorte.setBackground(Color.WHITE);
 
-        JLabel lblTitulo = new JLabel("Control y Historial de Préstamos");
+        JLabel lblTitulo = new JLabel("Control de Préstamos (Tickets)");
         lblTitulo.setFont(new Font("Segoe UI", Font.BOLD, 24));
         panelNorte.add(lblTitulo, BorderLayout.NORTH);
 
@@ -34,18 +42,14 @@ public class PanelPrestamos extends JPanel {
 
         panelBusqueda.add(new JLabel("Buscar:"));
         txtBuscar = new JTextField(25);
-        txtBuscar.putClientProperty("JTextField.placeholderText", "Carnet de usuario o Código de Ejemplar...");
+        txtBuscar.putClientProperty("JTextField.placeholderText", "Carnet de usuario...");
         panelBusqueda.add(txtBuscar);
 
         panelBusqueda.add(new JLabel("Estado:"));
-        cbxFiltroEstado = new JComboBox<>(new String[]{"Todos", "Activos", "Vencidos", "Devueltos"});
+        cbxFiltroEstado = new JComboBox<>(new String[]{"Todos", "Activo", "Parcial", "Con Deuda", "Finalizado"});
         panelBusqueda.add(cbxFiltroEstado);
 
-        panelBusqueda.add(new JLabel("Pago:"));
-        cbxFiltroPago = new JComboBox<>(new String[]{"Todos", "Pendiente", "Pagado", "N/A"});
-        panelBusqueda.add(cbxFiltroPago);
-
-        btnBuscar = new JButton("Filtrar");
+        btnBuscar = new JButton("Recargar");
         btnBuscar.setBackground(new Color(61, 90, 128));
         btnBuscar.setForeground(Color.WHITE);
         panelBusqueda.add(btnBuscar);
@@ -53,14 +57,12 @@ public class PanelPrestamos extends JPanel {
         panelNorte.add(panelBusqueda, BorderLayout.CENTER);
         add(panelNorte, BorderLayout.NORTH);
 
-        // --- 2. TABLA DE DATOS (Centro) ---
-        // Basado en tu diagrama ER: Unimos datos de Prestamo, Usuario, Ejemplar y Documento
-        String[] columnas = {"ID", "Carnet", "Lector", "Cód. Ejemplar", "Título", "Fecha Préstamo", "Fecha Límite", "Estado", "Pago"};
+        // --- 2. TABLA DE DATOS (Cabecera) ---
+        // ¡Solo 6 columnas!
+        String[] columnas = {"ID Préstamo", "Carnet", "Lector", "Fecha Préstamo", "Cant. Ítems", "Estado"};
         modeloTabla = new DefaultTableModel(columnas, 0) {
             @Override
-            public boolean isCellEditable(int row, int column) {
-                return false; // Solo lectura
-            }
+            public boolean isCellEditable(int row, int column) { return false; }
         };
 
         tablaPrestamos = new JTable(modeloTabla);
@@ -70,29 +72,23 @@ public class PanelPrestamos extends JPanel {
         tablaPrestamos.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         tablaPrestamos.setShowVerticalLines(false);
 
-        aplicarColoresATabla(); // Aplicamos nuestro renderizador de colores
+        aplicarColoresATabla();
 
-        JScrollPane scrollPane = new JScrollPane(tablaPrestamos);
-        add(scrollPane, BorderLayout.CENTER);
+        add(new JScrollPane(tablaPrestamos), BorderLayout.CENTER);
 
         // --- 3. BOTONES DE ACCIÓN (Sur) ---
         JPanel panelSur = new JPanel(new FlowLayout(FlowLayout.RIGHT, 15, 10));
         panelSur.setBackground(Color.WHITE);
-
-        btnVerDetalles = crearBoton("Ver Detalles", new Color(108, 117, 125));
-        btnDevolucion = crearBoton("Registrar Devolución", new Color(244, 162, 97)); // Naranja
-        btnNuevoPrestamo = crearBoton("Nuevo Préstamo", new Color(41, 171, 135)); // Verde
-
+        btnEditarLector = crearBoton("Cambiar Lector", new Color(108, 117, 125));
+        btnVerDetalles = crearBoton("Gestionar / Ver Detalles", new Color(108, 117, 125));
+        btnNuevoPrestamo = crearBoton("Nuevo Préstamo", new Color(41, 171, 135));
+        panelSur.add(btnEditarLector);
         panelSur.add(btnVerDetalles);
-        panelSur.add(btnDevolucion);
         panelSur.add(btnNuevoPrestamo);
 
         add(panelSur, BorderLayout.SOUTH);
 
-        // Cargar datos de prueba iniciales
         cargarPrestamosDesdeBD();
-
-        // Eventos
         configurarEventos();
     }
 
@@ -107,7 +103,6 @@ public class PanelPrestamos extends JPanel {
     }
 
     private void aplicarColoresATabla() {
-        // --- 1. Renderizador para la columna "Estado" (Índice 7) ---
         DefaultTableCellRenderer renderizadorEstado = new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
@@ -115,19 +110,12 @@ public class PanelPrestamos extends JPanel {
                 if (value != null && !isSelected) {
                     String estado = value.toString();
                     c.setFont(c.getFont().deriveFont(Font.BOLD));
-
                     switch (estado) {
-                        case "Activo":
-                            c.setForeground(new Color(41, 171, 135)); // Verde
-                            break;
-                        case "Vencido":
-                            c.setForeground(new Color(220, 53, 69)); // Rojo fuego
-                            break;
-                        case "Devuelto":
-                            c.setForeground(new Color(108, 117, 125)); // Gris (ya no importa tanto)
-                            break;
-                        default:
-                            c.setForeground(table.getForeground());
+                        case "Activo": c.setForeground(new Color(41, 171, 135)); break; // Verde
+                        case "Parcial": c.setForeground(new Color(244, 162, 97)); break; // Naranja
+                        case "Con Deuda": c.setForeground(new Color(220, 53, 69)); break;
+                        case "Finalizado": c.setForeground(new Color(108, 117, 125)); break; // Gris
+                        default: c.setForeground(table.getForeground());
                     }
                 } else if (isSelected) {
                     c.setForeground(table.getSelectionForeground());
@@ -135,181 +123,87 @@ public class PanelPrestamos extends JPanel {
                 return c;
             }
         };
-        // Aplicamos el color solo a la columna "Estado" (Índice 7)
-        tablaPrestamos.getColumnModel().getColumn(7).setCellRenderer(renderizadorEstado);
-
-        // --- 2. Renderizador para la nueva columna "Pago" (Índice 8) ---
-        DefaultTableCellRenderer renderizadorPago = new DefaultTableCellRenderer() {
-            @Override
-            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
-                Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-                if (value != null && !isSelected) {
-                    String pago = value.toString();
-                    c.setFont(c.getFont().deriveFont(Font.BOLD));
-
-                    switch (pago) {
-                        case "Pendiente":
-                            c.setForeground(new Color(220, 53, 69)); // Rojo fuego para alertar la deuda
-                            break;
-                        case "Pagado":
-                            c.setForeground(new Color(41, 171, 135)); // Verde
-                            break;
-                        case "N/A":
-                        default:
-                            c.setForeground(new Color(108, 117, 125)); // Gris para los que no aplican
-                            break;
-                    }
-                } else if (isSelected) {
-                    c.setForeground(table.getSelectionForeground());
-                }
-                return c;
-            }
-        };
-        // Aplicamos el color solo a la nueva columna "Pago" (Índice 8)
-        tablaPrestamos.getColumnModel().getColumn(8).setCellRenderer(renderizadorPago);
+        // ¡La columna "Estado" ahora es el índice 5!
+        tablaPrestamos.getColumnModel().getColumn(5).setCellRenderer(renderizadorEstado);
     }
 
     public void cargarPrestamosDesdeBD() {
-        modeloTabla.setRowCount(0); // Limpiamos la tabla
-
+        modeloTabla.setRowCount(0);
         try {
-            com.biblioteca.repository.impl.PrestamoDAO prestamoDAO = new com.biblioteca.repository.impl.PrestamoDAO();
-            java.util.List<Object[]> listaPrestamos = prestamoDAO.obtenerTodosLosPrestamos();
-
+            List<Object[]> listaPrestamos = prestamoService.obtenerPrestamosCabecera();
             for (Object[] fila : listaPrestamos) {
                 modeloTabla.addRow(fila);
             }
         } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, "Error al cargar la tabla de préstamos: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-        }
-    }
-    private void filtrarDatos() {
-        String texto = txtBuscar.getText().trim();
-        String estado = (String) cbxFiltroEstado.getSelectedItem();
-        String estadoPago = (String) cbxFiltroPago.getSelectedItem();
-
-        modeloTabla.setRowCount(0); // Limpiar la tabla antes de rellenar
-
-        try {
-            com.biblioteca.repository.impl.PrestamoDAO prestamoDAO = new com.biblioteca.repository.impl.PrestamoDAO();
-            java.util.List<Object[]> listaFiltrada = prestamoDAO.buscarPrestamosConFiltro(texto, estado,estadoPago);
-
-            for (Object[] fila : listaFiltrada) {
-                modeloTabla.addRow(fila);
-            }
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "Error al filtrar la tabla: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Error al cargar la tabla: " + e.getMessage());
         }
     }
 
     private void configurarEventos() {
-        btnBuscar.addActionListener(e -> filtrarDatos()); // <-- Usamos la variable directa
-        txtBuscar.addActionListener(e -> filtrarDatos());
-        cbxFiltroEstado.addActionListener(e -> filtrarDatos());
-        cbxFiltroPago.addActionListener(e -> filtrarDatos());
-
-        // Evento para cambiar el botón según la deuda
-        tablaPrestamos.getSelectionModel().addListSelectionListener(e -> {
-            int fila = tablaPrestamos.getSelectedRow();
-            if (fila != -1) {
-                String estado = modeloTabla.getValueAt(fila, 7).toString();
-                // Si ya está devuelto, cambiamos el texto del botón para que sirva para cobrar
-                if ("Devuelto".equals(estado)) {
-                    btnDevolucion.setText("Cobrar Mora");
-                    btnDevolucion.setBackground(new Color(61, 90, 128)); // Azul
-                } else {
-                    btnDevolucion.setText("Registrar Devolución");
-                    btnDevolucion.setBackground(new Color(244, 162, 97)); // Naranja
-                }
-            }
-        });
-
+        // Al darle clic recargamos la info para asegurar que los estados sean frescos
+        btnBuscar.addActionListener(e -> cargarPrestamosDesdeBD());
 
         btnNuevoPrestamo.addActionListener(e -> {
             Window ventanaPadre = SwingUtilities.getWindowAncestor(this);
-            // Asegúrate de importar com.biblioteca.view.forms.DialogNuevoPrestamo si te lo pide
-            com.biblioteca.view.forms.DialogNuevoPrestamo dialog = new com.biblioteca.view.forms.DialogNuevoPrestamo(ventanaPadre);
+            DialogNuevoPrestamo dialog = new DialogNuevoPrestamo(ventanaPadre);
             dialog.setVisible(true);
-
             cargarPrestamosDesdeBD();
-
-            // Aquí pondremos el cargarPrestamosDesdeBD() más adelante
         });
-
-        btnDevolucion.addActionListener(e -> {
+        btnEditarLector.addActionListener(e -> {
             int fila = tablaPrestamos.getSelectedRow();
             if (fila == -1) {
-                JOptionPane.showMessageDialog(this, "Selecciona un préstamo de la tabla.", "Advertencia", JOptionPane.WARNING_MESSAGE);
+                JOptionPane.showMessageDialog(this, "Selecciona un préstamo."); return;
+            }
+
+            int idPrestamo = Integer.parseInt(modeloTabla.getValueAt(fila, 0).toString());
+            int cantItems = Integer.parseInt(modeloTabla.getValueAt(fila, 4).toString()); // Cantidad de libros
+
+            try {
+                if (!prestamoService.esPrestamoDeHoy(idPrestamo)) {
+                    JOptionPane.showMessageDialog(this, "Solo puedes editar el lector el mismo día en que se creó el préstamo.", "Edición Bloqueada", JOptionPane.WARNING_MESSAGE);
+                    return;
+                }
+
+                // Abrimos buscador de usuarios
+                com.biblioteca.view.forms.DialogBuscarUsuario dialog = new com.biblioteca.view.forms.DialogBuscarUsuario(SwingUtilities.getWindowAncestor(this));
+                dialog.setVisible(true);
+
+                com.biblioteca.model.Usuario nuevoUser = dialog.getUsuarioSeleccionado();
+                if (nuevoUser != null) {
+                    if (nuevoUser.getEstadoMora()) {
+                        JOptionPane.showMessageDialog(this, "El nuevo lector tiene mora pendiente.", "Bloqueado", JOptionPane.ERROR_MESSAGE); return;
+                    }
+                    if (nuevoUser.getTipoUsuario().getMaxLibrosPermitidos() < cantItems) {
+                        JOptionPane.showMessageDialog(this, "El nuevo lector solo tiene permitido " + nuevoUser.getTipoUsuario().getMaxLibrosPermitidos() + " libros, y este préstamo tiene " + cantItems + ".", "Límite Excedido", JOptionPane.ERROR_MESSAGE); return;
+                    }
+
+                    // Ejecutar cambio
+                    prestamoService.cambiarLector(idPrestamo, nuevoUser.getIdUsuario(), nuevoUser.getTipoUsuario().getMaxDiasPrestamo());
+                    JOptionPane.showMessageDialog(this, "Lector actualizado exitosamente.");
+                    cargarPrestamosDesdeBD();
+                }
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        });
+
+        btnVerDetalles.addActionListener(e -> {
+            int fila = tablaPrestamos.getSelectedRow();
+            if (fila == -1) {
+                JOptionPane.showMessageDialog(this, "Selecciona un préstamo de la tabla para ver sus ítems.", "Advertencia", JOptionPane.WARNING_MESSAGE);
                 return;
             }
 
-            try {
-                // 1. Extraer datos básicos de forma ultra-segura
-                int idPrestamo = Integer.parseInt(modeloTabla.getValueAt(fila, 0).toString());
-                String carnet = modeloTabla.getValueAt(fila, 1).toString();
-                String titulo = modeloTabla.getValueAt(fila, 4).toString();
-                String estado = modeloTabla.getValueAt(fila, 7).toString();
+            int idPrestamo = Integer.parseInt(modeloTabla.getValueAt(fila, 0).toString());
+            String lector = modeloTabla.getValueAt(fila, 2).toString();
 
-                com.biblioteca.repository.impl.PrestamoDAO dao = new com.biblioteca.repository.impl.PrestamoDAO();
+            Window ventanaPadre = SwingUtilities.getWindowAncestor(this);
+            // Abrimos el nuevo gestor de detalles
+            DialogDetallePrestamo dialog = new DialogDetallePrestamo(ventanaPadre, idPrestamo, lector);
+            dialog.setVisible(true);
 
-                // --- CASO 1: EL LIBRO YA SE DEVOLVIÓ (Gestión de pagos pendientes) ---
-                if ("Devuelto".equals(estado) || btnDevolucion.getText().equals("Cobrar Mora")) {
-
-                    // Consultamos rápido los saldos para este préstamo específico
-                    String sqlSaldos = "SELECT id_usuario, monto_calculado, monto_pagado FROM Prestamo WHERE id_prestamo = ?";
-                    try (java.sql.Connection con = com.biblioteca.config.DatabaseConnection.getConnection();
-                         java.sql.PreparedStatement ps = con.prepareStatement(sqlSaldos)) {
-
-                        ps.setInt(1, idPrestamo);
-                        try (java.sql.ResultSet rs = ps.executeQuery()) {
-                            if (rs.next()) {
-                                int idUsuario = rs.getInt("id_usuario");
-                                double calculado = rs.getDouble("monto_calculado");
-                                double pagado = rs.getDouble("monto_pagado");
-
-                                if (calculado > pagado) {
-                                    // Si aún debe, abrimos la ventanita de cobrar
-                                    Window ventanaPadre = SwingUtilities.getWindowAncestor(this);
-                                    com.biblioteca.view.forms.DialogPagarMora dialog = new com.biblioteca.view.forms.DialogPagarMora(
-                                            ventanaPadre, idPrestamo, idUsuario, carnet, calculado, pagado
-                                    );
-                                    dialog.setVisible(true);
-                                    cargarPrestamosDesdeBD(); // Refrescar tabla al cerrar
-                                } else {
-                                    JOptionPane.showMessageDialog(this, "Este préstamo ya está devuelto y está 100% solvente.", "Información", JOptionPane.INFORMATION_MESSAGE);
-                                }
-                            }
-                        }
-                    }
-                    return; // Terminamos aquí para que no ejecute el código de abajo
-                }
-
-                // --- CASO 2: EL LIBRO AÚN LO TIENE EL LECTOR (Proceso Normal de Devolución) ---
-                Object[] datosExtra = dao.obtenerDatosParaDevolucion(idPrestamo);
-
-                if (datosExtra != null) {
-                    int idEjemplar = (int) datosExtra[0];
-                    java.time.LocalDate fechaLimite = (java.time.LocalDate) datosExtra[1];
-                    double valorMora = (double) datosExtra[2];
-                    int idUsuario = (int) datosExtra[3];
-
-                    // Abrir la ventana de devolución estándar
-                    Window ventanaPadre = SwingUtilities.getWindowAncestor(this);
-                    com.biblioteca.view.forms.DialogDevolucion dialog = new com.biblioteca.view.forms.DialogDevolucion(
-                            ventanaPadre, idPrestamo, idUsuario, carnet, titulo, fechaLimite, idEjemplar, valorMora
-                    );
-                    dialog.setVisible(true);
-
-                    // Actualizar tabla al terminar
-                    cargarPrestamosDesdeBD();
-                } else {
-                    JOptionPane.showMessageDialog(this, "No se pudieron recuperar los detalles técnicos del préstamo.", "Error", JOptionPane.ERROR_MESSAGE);
-                }
-
-            } catch (Exception ex) {
-                JOptionPane.showMessageDialog(this, "Error crítico de Base de Datos:\n" + ex.getMessage(), "Falla al procesar", JOptionPane.ERROR_MESSAGE);
-                ex.printStackTrace();
-            }
+            // Al cerrar el gestor, recargamos la tabla principal por si cambió a "Parcial" o "Finalizado"
+            cargarPrestamosDesdeBD();
         });
     }
 }
