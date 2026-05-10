@@ -17,6 +17,7 @@ public interface IEjemplarService {
      * @return Una lista de arreglos de objetos lista para ser mostrada en la JTable.
      */
     List<Object[]> filtrarEjemplares(String texto, Integer idTipoDoc);
+    List<Object[]> obtenerEjemplaresPorDocumento(Integer idDocumento);
 
     boolean guardarEjemplar(Ejemplar ej);
 }

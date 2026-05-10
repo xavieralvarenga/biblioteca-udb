@@ -82,6 +82,35 @@ public class EjemplarDAO {
     }
 
     /**
+     * Obtiene los ejemplares que pertenecen estrictamente a un documento específico.
+     */
+    public List<Object[]> obtenerEjemplaresPorDocumento(Integer idDocumento) {
+        List<Object[]> resultados = new ArrayList<>();
+        String sql = "SELECT id_ejemplar, codigo_de_barras, estado FROM Ejemplar WHERE id_documento = ?";
+
+        try {
+            @Cleanup Connection con = DatabaseConnection.getConnection();
+            @Cleanup PreparedStatement ps = con.prepareStatement(sql);
+
+            ps.setInt(1, idDocumento);
+
+            @Cleanup ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                // Devolvemos exactamente las 3 columnas que necesita la tabla del Diálogo
+                resultados.add(new Object[]{
+                        rs.getInt("id_ejemplar"),
+                        rs.getString("codigo_de_barras"),
+                        rs.getString("estado")
+                });
+            }
+        } catch (SQLException e) {
+            log.severe("Error al obtener ejemplares del documento " + idDocumento + ": " + e.getMessage());
+        }
+
+        return resultados;
+    }
+
+    /**
      * Inserta un nuevo ejemplar físico en la base de datos.
      * @param ej Objeto con los datos del ejemplar.
      * @param idDoc ID del documento padre al que se vincula.

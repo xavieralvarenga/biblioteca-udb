@@ -24,6 +24,9 @@ public class EjemplarServiceImpl implements IEjemplarService {
         this.ejemplarDAO = new EjemplarDAO();
     }
 
+
+
+
     /**
      * Implementa la lógica de filtrado de ejemplares.
      * Realiza una limpieza básica de los parámetros antes de consultar al DAO.
@@ -45,10 +48,23 @@ public class EjemplarServiceImpl implements IEjemplarService {
         }
     }
 
+
     @Override
     public boolean guardarEjemplar(Ejemplar ej) {
         // Extraemos el ID del documento base para la persistencia en la tabla Ejemplar
         Integer idDoc = ej.getDocumento().getIdDocumento();
         return ejemplarDAO.insertar(ej, idDoc);
     }
+
+    @Override
+    public List<Object[]> obtenerEjemplaresPorDocumento(Integer idDocumento) {
+        try {
+            return ejemplarDAO.obtenerEjemplaresPorDocumento(idDocumento);
+        } catch (Exception e) {
+            log.severe("Error al obtener ejemplares por ID: " + e.getMessage());
+            return new ArrayList<>();
+        }
+    }
+
+
 }

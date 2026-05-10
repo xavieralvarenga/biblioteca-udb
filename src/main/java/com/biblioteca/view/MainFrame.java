@@ -2,7 +2,7 @@ package com.biblioteca.view;
 
 import com.biblioteca.view.panels.PanelInventario;
 import com.biblioteca.view.panels.PanelUsuarios;
-import com.biblioteca.view.forms.DialogConfigurarMora; // Importamos el diálogo
+import com.biblioteca.view.forms.DialogConfigurarMora;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -12,11 +12,11 @@ import java.sql.SQLException;
 public class MainFrame extends JFrame {
     private CardLayout cardLayout;
     private JPanel panelCentral;
-    private JButton btnConfigMora; // Ya estaba declarado, ahora lo usaremos
+    private JButton btnConfigMora;
 
     public MainFrame() throws SQLException {
         setTitle("Sistema de Mediateca - Panel de Administración");
-        setSize(1100, 750); // Un poco más de espacio para la nueva columna
+        setSize(1100, 750);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         setLayout(new BorderLayout());
@@ -53,7 +53,7 @@ public class MainFrame extends JFrame {
         JButton btnPrestamos = crearBotonMenu("Gestión de Préstamos");
         JButton btnInventario = crearBotonMenu("Inventario");
         JButton btnUsuarios = crearBotonMenu("Gestión de Usuarios");
-        btnConfigMora = crearBotonMenu("Configurar Mora Anual"); // Nombre más descriptivo
+        btnConfigMora = crearBotonMenu("Configurar Mora Anual");
         JButton btnSalir = crearBotonMenu("Cerrar Sesión");
 
         // --- LÓGICA DE VISIBILIDAD POR ROL ---
@@ -61,16 +61,16 @@ public class MainFrame extends JFrame {
         sidebar.add(Box.createRigidArea(new Dimension(0, 10)));
         sidebar.add(btnPrestamos);
 
-        if (rol == 1 || rol == 2) {
+        // AHORA SOLO EL ADMINISTRADOR (rol 1) VE ESTOS MÓDULOS
+        if (rol == 1) {
             sidebar.add(Box.createRigidArea(new Dimension(0, 10)));
             sidebar.add(btnInventario);
-        }
 
-        if (rol == 1) { // Solo administradores ven Usuarios y Configuración
             sidebar.add(Box.createRigidArea(new Dimension(0, 10)));
             sidebar.add(btnUsuarios);
+
             sidebar.add(Box.createRigidArea(new Dimension(0, 10)));
-            sidebar.add(btnConfigMora); // <--- AGREGADO AL SIDEBAR
+            sidebar.add(btnConfigMora);
         }
 
         sidebar.add(Box.createVerticalGlue());
@@ -86,20 +86,17 @@ public class MainFrame extends JFrame {
         lblBienvenida.setFont(new Font("Segoe UI", Font.BOLD, 36));
         panelBienvenida.add(lblBienvenida, BorderLayout.CENTER);
 
-        // El panel de préstamos (y catálogo) lo ven todos
+        // El panel de préstamos lo ven todos
         com.biblioteca.view.panels.PanelPrestamos panelPrestamos = new com.biblioteca.view.panels.PanelPrestamos();
 
         panelCentral.add(panelBienvenida, "INICIO");
         panelCentral.add(panelPrestamos, "PRESTAMOS");
 
-        // Solo instanciamos el Inventario si es Admin(1) o Profesor(2)
-        if (rol == 1 || rol == 2) {
+        // Instanciamos los paneles administrativos SOLO si es Admin(1)
+        if (rol == 1) {
             PanelInventario panelInventario = new PanelInventario();
             panelCentral.add(panelInventario, "INVENTARIO");
-        }
 
-        // Solo instanciamos Usuarios si es Admin(1)
-        if (rol == 1) {
             PanelUsuarios panelUsuarios = new PanelUsuarios();
             panelCentral.add(panelUsuarios, "USUARIOS");
         }
@@ -117,8 +114,6 @@ public class MainFrame extends JFrame {
         btnConfigMora.addActionListener(e -> {
             DialogConfigurarMora dialog = new DialogConfigurarMora(this);
             dialog.setVisible(true);
-            // Al regresar, si el usuario está viendo préstamos, los datos se actualizarán solos
-            // la próxima vez que abra un detalle o devolución.
         });
 
         btnSalir.addActionListener(e -> {

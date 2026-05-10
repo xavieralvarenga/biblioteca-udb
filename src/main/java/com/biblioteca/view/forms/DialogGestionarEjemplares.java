@@ -82,13 +82,13 @@ public class DialogGestionarEjemplares extends JDialog {
     private void cargarEjemplares() {
         modelo.setRowCount(0);
         try {
-            // Filtrar usando el ID del documento actual
-            // Nota: Asegúrate de que el DAO/Service filtre por idDocumento
-            List<Object[]> datos = ejemplarService.filtrarEjemplares("", null);
+            // ¡CORRECCIÓN! Llamamos al método específico pasando el ID del documento
+            List<Object[]> datos = ejemplarService.obtenerEjemplaresPorDocumento(this.idDocumento);
 
             for (Object[] fila : datos) {
-                // Mapeo según tu DAO: [0] ID Ejemplar, [1] Código, [5] Estado
-                modelo.addRow(new Object[]{fila[0], fila[1], fila[5]});
+                // Ahora el mapeo es directo porque el DAO nos devuelve exactamente
+                // [0] ID Ejemplar, [1] Código de Barras, [2] Estado
+                modelo.addRow(new Object[]{fila[0], fila[1], fila[2]});
             }
         } catch (Exception e) {
             log.severe("Error al cargar ejemplares en el diálogo: " + e.getMessage());
