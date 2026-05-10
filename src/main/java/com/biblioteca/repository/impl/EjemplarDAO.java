@@ -1,19 +1,33 @@
 package com.biblioteca.repository.impl;
 
 import com.biblioteca.config.DatabaseConnection;
+import com.biblioteca.model.Ejemplar;
+import lombok.Cleanup;
+import lombok.extern.java.Log;
+
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-
+/**
+ * Clase de acceso a datos para la gestión de Ejemplares físicos.
+ * Utiliza JDBC tradicional para consultas dinámicas y filtrado.
+ */
+@Log
 public class EjemplarDAO {
 
     /**
-     * Busca ejemplares en la base de datos con filtros de texto y tipo de documento.
+     * Realiza una búsqueda avanzada de ejemplares en la base de datos.
+     * Une las tablas Ejemplar, Documento y TipoDocumento para obtener una vista completa.
+     *
+     * @param texto      Cadena de búsqueda (Título, Autor o Código de Barras).
+     * @param idTipoDoc  Identificador del tipo de documento (0 o null para omitir filtro).
+     * @return Lista de arreglos de objetos, cada uno representando una fila para la JTable.
      */
     public List<Object[]> buscarEjemplares(String texto, Integer idTipoDoc) {
         List<Object[]> resultados = new ArrayList<>();
 
+        // 1. Construcción de la consulta con StringBuilder para mayor eficiencia
         StringBuilder sql = new StringBuilder(
                 "SELECT e.id_ejemplar, e.codigo_de_barras, d.titulo, d.autor, td.Nombre as tipo, e.estado " +
                         "FROM Ejemplar e " +
@@ -22,6 +36,7 @@ public class EjemplarDAO {
                         "WHERE 1=1"
         );
 
+        // 2. Aplicación de filtros dinámicos
         if (idTipoDoc != null && idTipoDoc > 0) {
             sql.append(" AND td.id_tipo_doc = ?");
         }
@@ -29,33 +44,64 @@ public class EjemplarDAO {
             sql.append(" AND (d.titulo LIKE ? OR d.autor LIKE ? OR e.codigo_de_barras LIKE ?)");
         }
 
-        try (Connection con = DatabaseConnection.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql.toString())) {
+        try {
+            // 3. Obtención de conexión y preparación de sentencia con Lombok @Cleanup
+            @Cleanup Connection con = DatabaseConnection.getConnection();
+            @Cleanup PreparedStatement ps = con.prepareStatement(sql.toString());
 
+            // 4. Asignación de parámetros según los filtros activos
             int idx = 1;
-            if (idTipoDoc != null && idTipoDoc > 0) ps.setInt(idx++, idTipoDoc);
+            if (idTipoDoc != null && idTipoDoc > 0) {
+                ps.setInt(idx++, idTipoDoc);
+            }
             if (texto != null && !texto.trim().isEmpty()) {
-                String search = "%" + texto + "%";
-                ps.setString(idx++, search);
-                ps.setString(idx++, search);
-                ps.setString(idx++, search);
+                String search = "%" + texto.trim() + "%";
+                ps.setString(idx++, search); // para título
+                ps.setString(idx++, search); // para autor
+                ps.setString(idx++, search); // para código de barras
             }
 
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    resultados.add(new Object[]{
-                            rs.getInt("id_ejemplar"),
-                            rs.getString("codigo_de_barras"),
-                            rs.getString("titulo"),
-                            rs.getString("autor"),
-                            rs.getString("tipo"),
-                            rs.getString("estado")
-                    });
-                }
+            // 5. Ejecución y mapeo de resultados
+            @Cleanup ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                resultados.add(new Object[]{
+                        rs.getInt("id_ejemplar"),
+                        rs.getString("codigo_de_barras"),
+                        rs.getString("titulo"),
+                        rs.getString("autor"),
+                        rs.getString("tipo"),
+                        rs.getString("estado")
+                });
             }
+
         } catch (SQLException e) {
-            e.printStackTrace();
+            log.severe("Error al ejecutar búsqueda de ejemplares: " + e.getMessage());
         }
+
         return resultados;
+    }
+
+    /**
+     * Inserta un nuevo ejemplar físico en la base de datos.
+     * @param ej Objeto con los datos del ejemplar.
+     * @param idDoc ID del documento padre al que se vincula.
+     * @return true si la inserción fue exitosa.
+     */
+    public boolean insertar(Ejemplar ej, Integer idDoc) {
+        String sql = "INSERT INTO Ejemplar (id_documento, codigo_de_barras, estado) VALUES (?, ?, ?)";
+
+        try {
+            @Cleanup Connection con = DatabaseConnection.getConnection();
+            @Cleanup PreparedStatement ps = con.prepareStatement(sql);
+
+            ps.setInt(1, idDoc);
+            ps.setString(2, ej.getCodigoBarrasUnico());
+            ps.setString(3, ej.getEstado());
+
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            log.severe("Error al insertar ejemplar: " + e.getMessage());
+            return false;
+        }
     }
 }

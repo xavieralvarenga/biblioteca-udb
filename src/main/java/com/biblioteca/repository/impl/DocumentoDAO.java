@@ -3,6 +3,8 @@ package com.biblioteca.repository.impl;
 import com.biblioteca.config.DatabaseConnection;
 import com.biblioteca.model.*;
 import com.biblioteca.repository.IDocumentoDAO;
+import lombok.Cleanup;
+
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -265,5 +267,33 @@ public class DocumentoDAO implements IDocumentoDAO {
         } finally {
             try { connection.setAutoCommit(true); } catch (SQLException e) { e.printStackTrace(); }
         }
+    }
+
+    /**
+     * Obtiene la lista de documentos incluyendo el conteo de ejemplares físicos.
+     */
+    public List<Object[]> listarConTotales() {
+        List<Object[]> lista = new ArrayList<>();
+        // Usamos una subconsulta para contar los ejemplares de cada documento
+        String sql = "SELECT d.id_documento, td.Nombre, d.titulo, d.autor, d.ubicacion_fisica, d.estado, " +
+                "(SELECT COUNT(*) FROM Ejemplar e WHERE e.id_documento = d.id_documento) as total " +
+                "FROM Documento d " +
+                "INNER JOIN TipoDocumento td ON d.id_tipo_doc = td.id_tipo_doc";
+
+        try {
+            @Cleanup Connection con = DatabaseConnection.getConnection();
+            @Cleanup PreparedStatement ps = con.prepareStatement(sql);
+            @Cleanup ResultSet rs = ps.executeQuery();
+
+            while (rs.next()) {
+                lista.add(new Object[]{
+                        rs.getInt(1), rs.getString(2), rs.getString(3),
+                        rs.getString(4), rs.getString(5), rs.getString(6), rs.getInt(7) // El total es la columna 7
+                });
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return lista;
     }
 }

@@ -4,7 +4,10 @@ import com.biblioteca.model.Documento;
 import com.biblioteca.service.IDocumentoService;
 import com.biblioteca.service.impl.DocumentoServiceImpl;
 import com.biblioteca.view.forms.DialogEditarDocumento;
+import com.biblioteca.view.forms.DialogGestionarEjemplares;
 import com.biblioteca.view.forms.DialogNuevoDocumento;
+import com.biblioteca.view.forms.DialogEditarDocumento;
+import com.biblioteca.view.forms.DialogGestionarEjemplares;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -171,34 +174,55 @@ public class PanelInventario extends JPanel {
             }
         });
 
-        btnEliminar.addActionListener(e -> {
-        int fila = tablaDocumentos.getSelectedRow();
-        if (fila == -1) {
-            JOptionPane.showMessageDialog(this, "Por favor, seleccione un documento de la tabla.");
-            return;
-        }
-
-        // Obtener datos para el mensaje de confirmación
-        int id = (int) modeloTabla.getValueAt(fila, 0);
-        String titulo = (String) modeloTabla.getValueAt(fila, 2);
-
-        int respuesta = JOptionPane.showConfirmDialog(
-            this,
-            "¿Está seguro de que desea eliminar el documento: '" + titulo + "'?\nEsta acción no se puede deshacer.",
-            "Confirmar Eliminación",
-            JOptionPane.YES_NO_OPTION,
-            JOptionPane.WARNING_MESSAGE
-        );
-
-        if (respuesta == JOptionPane.YES_OPTION) {
-            if (documentoService.darDeBajaDocumento(id)) {
-                JOptionPane.showMessageDialog(this, "El documento ha sido eliminado con éxito.");
-                llenarTablaDesdeBD(); // Refrescar la tabla inmediatamente
-            } else {
-                JOptionPane.showMessageDialog(this, "No se pudo eliminar. Verifique si el documento está prestado.", "Error", JOptionPane.ERROR_MESSAGE);
+        // Evento Gestionar Ejemplares
+        btnEjemplares.addActionListener(e -> {
+            int fila = tablaDocumentos.getSelectedRow();
+            if (fila == -1) {
+                JOptionPane.showMessageDialog(this, "Seleccione un documento de la tabla primero.");
+                return;
             }
-        }
-    });
+
+            // Obtenemos los datos directamente del modelo para evitar errores de casting
+            Integer idDoc = (Integer) modeloTabla.getValueAt(fila, 0);
+            String titulo = (String) modeloTabla.getValueAt(fila, 2);
+
+            // Abrimos el diálogo enviando el dueño (ventana padre), el ID y el título
+            Window win = SwingUtilities.getWindowAncestor(this);
+            DialogGestionarEjemplares dialog = new DialogGestionarEjemplares(win, idDoc, titulo);
+            dialog.setVisible(true);
+
+            // Refrescamos por si cambió el estado general del documento
+            llenarTablaDesdeBD();
+        });
+
+        // Evento Eliminar
+        btnEliminar.addActionListener(e -> {
+            int fila = tablaDocumentos.getSelectedRow();
+            if (fila == -1) {
+                JOptionPane.showMessageDialog(this, "Por favor, seleccione un documento de la tabla.");
+                return;
+            }
+
+            int id = (int) modeloTabla.getValueAt(fila, 0);
+            String titulo = (String) modeloTabla.getValueAt(fila, 2);
+
+            int respuesta = JOptionPane.showConfirmDialog(
+                    this,
+                    "¿Está seguro de que desea eliminar el documento: '" + titulo + "'?\nEsta acción no se puede deshacer.",
+                    "Confirmar Eliminación",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.WARNING_MESSAGE
+            );
+
+            if (respuesta == JOptionPane.YES_OPTION) {
+                if (documentoService.darDeBajaDocumento(id)) {
+                    JOptionPane.showMessageDialog(this, "El documento ha sido eliminado con éxito.");
+                    llenarTablaDesdeBD();
+                } else {
+                    JOptionPane.showMessageDialog(this, "No se pudo eliminar. Verifique si el documento está prestado.", "Error", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        });
     }
 
     /**
