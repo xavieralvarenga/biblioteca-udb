@@ -3,8 +3,14 @@ plugins {
     id 'application'    // Permite ejecutar la app directamente desde Gradle y crear distribuciones.
 }
 
-group 'com.biblioteca'  // Identificador único de tu organización o proyecto.
-version '1.0'  // Versión actual del desarrollo.
+group = 'com.biblioteca'
+version = '1.0'
+
+// 1. FORMA CORRECTA DE DECLARAR LA VERSIÓN DE JAVA EN GRADLE 9+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
 
 repositories {
     mavenCentral()      // Indica a Gradle que descargue las librerías desde el repositorio central de Maven.
@@ -14,23 +20,28 @@ dependencies {
     /** + INTERFAZ GRÁFICA (Swing con FlatLaf) */
     implementation 'com.formdev:flatlaf:3.0'
 
-    /** + BASE DE DATOS (MySQL) */
+    /** + BASE DE DATOS (MySQL y Pool de conexiones) */
     implementation 'mysql:mysql-connector-java:8.0.33'
     implementation 'com.zaxxer:HikariCP:5.0.1'
 
     /** + SEGURIDAD (BCrypt) */
     implementation 'org.mindrot:jbcrypt:0.4'
 
-    /** + LOMBOK (Productividad) */
-    compileOnly 'org.projectlombok:lombok:1.18.28'
-    annotationProcessor 'org.projectlombok:lombok:1.18.28'
+    /** + LOMBOK (Productividad - Versión corregida para Java moderno) */
+    compileOnly 'org.projectlombok:lombok:1.18.36'
+    annotationProcessor 'org.projectlombok:lombok:1.18.36'
 
-    /** + LOGGING (Registro de eventos) */
-    implementation 'org.slf4j:slf4j-api:2.0.7'
-    implementation 'org.slf4j:slf4j-simple:2.0.7'
+    /** + LOGGING (Registro de eventos - Limpio y sin duplicados) */
+    implementation 'org.slf4j:slf4j-api:2.0.12'
+    implementation 'org.slf4j:slf4j-simple:2.0.12'
 
     /** + REPORTES */
     implementation 'com.itextpdf:itext7-core:7.2.5'
+
+    /** + JPA / HIBERNATE (Para que los modelos no den error) */
+    implementation 'org.hibernate.orm:hibernate-core:6.4.1.Final'
+    implementation 'jakarta.validation:jakarta.validation-api:3.0.2'
+    implementation 'org.hibernate.validator:hibernate-validator:8.0.1.Final'
 }
 
 application {
