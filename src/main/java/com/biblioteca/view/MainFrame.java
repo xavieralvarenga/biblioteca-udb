@@ -2,6 +2,7 @@ package com.biblioteca.view;
 
 import com.biblioteca.view.panels.PanelInventario;
 import com.biblioteca.view.panels.PanelUsuarios;
+import com.biblioteca.view.forms.DialogConfigurarMora; // Importamos el diálogo
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -11,10 +12,11 @@ import java.sql.SQLException;
 public class MainFrame extends JFrame {
     private CardLayout cardLayout;
     private JPanel panelCentral;
+    private JButton btnConfigMora; // Ya estaba declarado, ahora lo usaremos
 
     public MainFrame() throws SQLException {
         setTitle("Sistema de Mediateca - Panel de Administración");
-        setSize(1000, 700);
+        setSize(1100, 750); // Un poco más de espacio para la nueva columna
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         setLayout(new BorderLayout());
@@ -22,20 +24,20 @@ public class MainFrame extends JFrame {
         // 2. RECUPERAMOS EL USUARIO DESDE LA BÓVEDA GLOBAL
         com.biblioteca.model.Usuario usuarioActivo = com.biblioteca.util.SessionManager.getInstance().getUsuarioLogueado();
 
-        // 3. Pequeño control de seguridad (por si alguien intenta abrir el MainFrame sin loguearse)
         if (usuarioActivo == null) {
             JOptionPane.showMessageDialog(null, "Error: No hay una sesión activa.", "Error de Seguridad", JOptionPane.ERROR_MESSAGE);
             this.dispose();
             new LoginFrame().setVisible(true);
-            return; // Corta la ejecución
+            return;
         }
+
         String nombreMostrado = usuarioActivo.getNombres();
         int rol = usuarioActivo.getTipoUsuario().getIdTipo();
 
         // --- SIDEBAR (Menú lateral) ---
         JPanel sidebar = new JPanel();
         sidebar.setLayout(new BoxLayout(sidebar, BoxLayout.Y_AXIS));
-        sidebar.setPreferredSize(new Dimension(250, 0));
+        sidebar.setPreferredSize(new Dimension(260, 0));
         sidebar.setBackground(new Color(41, 50, 65));
         sidebar.setBorder(new EmptyBorder(20, 10, 20, 10));
 
@@ -46,30 +48,35 @@ public class MainFrame extends JFrame {
         sidebar.add(lblLogo);
         sidebar.add(Box.createRigidArea(new Dimension(0, 40)));
 
+        // Inicialización de botones
         JButton btnInicio = crearBotonMenu("Inicio");
-        JButton btnSalir = crearBotonMenu("Cerrar Sesión");
-
         JButton btnPrestamos = crearBotonMenu("Gestión de Préstamos");
         JButton btnInventario = crearBotonMenu("Inventario");
         JButton btnUsuarios = crearBotonMenu("Gestión de Usuarios");
+        btnConfigMora = crearBotonMenu("Configurar Mora Anual"); // Nombre más descriptivo
+        JButton btnSalir = crearBotonMenu("Cerrar Sesión");
 
+        // --- LÓGICA DE VISIBILIDAD POR ROL ---
         sidebar.add(btnInicio);
         sidebar.add(Box.createRigidArea(new Dimension(0, 10)));
         sidebar.add(btnPrestamos);
-        // Si es Admin o Profesor, puede ver Inventario. Si es alumno, tal vez no, o solo consulta.
+
         if (rol == 1 || rol == 2) {
             sidebar.add(Box.createRigidArea(new Dimension(0, 10)));
             sidebar.add(btnInventario);
         }
-        // SOLO LOS ADMINISTRADORES pueden gestionar usuarios
-        if (rol == 1) {
+
+        if (rol == 1) { // Solo administradores ven Usuarios y Configuración
             sidebar.add(Box.createRigidArea(new Dimension(0, 10)));
             sidebar.add(btnUsuarios);
+            sidebar.add(Box.createRigidArea(new Dimension(0, 10)));
+            sidebar.add(btnConfigMora); // <--- AGREGADO AL SIDEBAR
         }
-        sidebar.add(Box.createVerticalGlue()); // Empuja el botón salir hacia abajo
+
+        sidebar.add(Box.createVerticalGlue());
         sidebar.add(btnSalir);
 
-        // --- PANEL CENTRAL (Contenido cambiante) ---
+        // --- PANEL CENTRAL ---
         cardLayout = new CardLayout();
         panelCentral = new JPanel(cardLayout);
 
@@ -79,18 +86,23 @@ public class MainFrame extends JFrame {
         lblBienvenida.setFont(new Font("Segoe UI", Font.BOLD, 36));
         panelBienvenida.add(lblBienvenida, BorderLayout.CENTER);
 
+        // El panel de préstamos (y catálogo) lo ven todos
         com.biblioteca.view.panels.PanelPrestamos panelPrestamos = new com.biblioteca.view.panels.PanelPrestamos();
-        // --- PANTALLA 3: INVENTARIO ---
-        // Importa com.biblioteca.view.panels.PanelInventario si te lo pide IntelliJ
-        PanelInventario panelInventario = new PanelInventario();
-        PanelUsuarios panelUsuarios = new PanelUsuarios();
 
-        // Añadimos las "Cartas" al panel central
         panelCentral.add(panelBienvenida, "INICIO");
         panelCentral.add(panelPrestamos, "PRESTAMOS");
-        panelCentral.add(panelInventario, "INVENTARIO"); // <--- AGREGAMOS ESTO
-        panelCentral.add(panelUsuarios, "USUARIOS");
 
+        // Solo instanciamos el Inventario si es Admin(1) o Profesor(2)
+        if (rol == 1 || rol == 2) {
+            PanelInventario panelInventario = new PanelInventario();
+            panelCentral.add(panelInventario, "INVENTARIO");
+        }
+
+        // Solo instanciamos Usuarios si es Admin(1)
+        if (rol == 1) {
+            PanelUsuarios panelUsuarios = new PanelUsuarios();
+            panelCentral.add(panelUsuarios, "USUARIOS");
+        }
 
         add(sidebar, BorderLayout.WEST);
         add(panelCentral, BorderLayout.CENTER);
@@ -98,28 +110,29 @@ public class MainFrame extends JFrame {
         // --- ACCIONES DE LOS BOTONES ---
         btnInicio.addActionListener(e -> cardLayout.show(panelCentral, "INICIO"));
         btnPrestamos.addActionListener(e -> cardLayout.show(panelCentral, "PRESTAMOS"));
-        // AGREGAMOS LA ACCIÓN AL BOTÓN DE INVENTARIO
         btnInventario.addActionListener(e -> cardLayout.show(panelCentral, "INVENTARIO"));
         btnUsuarios.addActionListener(e -> cardLayout.show(panelCentral, "USUARIOS"));
 
-        // 4. LÓGICA DE CIERRE DE SESIÓN (Garantizando que se borre)
+        // ACCIÓN PARA CONFIGURAR MORA
+        btnConfigMora.addActionListener(e -> {
+            DialogConfigurarMora dialog = new DialogConfigurarMora(this);
+            dialog.setVisible(true);
+            // Al regresar, si el usuario está viendo préstamos, los datos se actualizarán solos
+            // la próxima vez que abra un detalle o devolución.
+        });
+
         btnSalir.addActionListener(e -> {
             int confirmacion = JOptionPane.showConfirmDialog(
-                    this,
-                    "¿Seguro que deseas cerrar sesión?",
-                    "Cerrar Sesión",
-                    JOptionPane.YES_NO_OPTION,
-                    JOptionPane.QUESTION_MESSAGE
+                    this, "¿Seguro que deseas cerrar sesión?", "Cerrar Sesión",
+                    JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE
             );
-
             if (confirmacion == JOptionPane.YES_OPTION) {
-                // ¡DESTRUIMOS LA SESIÓN COMPLETAMENTE!
                 com.biblioteca.util.SessionManager.getInstance().cerrarSesion();
-
-                this.dispose(); // Destruye el MainFrame
-                new LoginFrame().setVisible(true); // Vuelve a la pantalla de login
+                this.dispose();
+                new LoginFrame().setVisible(true);
             }
         });
+
         cardLayout.show(panelCentral, "INICIO");
     }
 
@@ -131,8 +144,19 @@ public class MainFrame extends JFrame {
         btn.setFocusPainted(false);
         btn.setBorderPainted(false);
         btn.setAlignmentX(Component.CENTER_ALIGNMENT);
-        btn.setMaximumSize(new Dimension(230, 40));
+        btn.setMaximumSize(new Dimension(240, 40));
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        // Efecto visual simple al pasar el mouse
+        btn.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                btn.setBackground(new Color(80, 110, 150));
+            }
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                btn.setBackground(new Color(61, 90, 128));
+            }
+        });
+
         return btn;
     }
 }

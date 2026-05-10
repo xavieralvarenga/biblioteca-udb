@@ -1,6 +1,8 @@
 package com.biblioteca.repository.impl;
 
 import com.biblioteca.config.DatabaseConnection;
+import com.biblioteca.util.SessionManager;
+
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -48,12 +50,26 @@ public class PrestamoDAO {
     }
     public List<Object[]> obtenerPrestamosCabecera() {
         List<Object[]> lista = new ArrayList<>();
-        String sql = "SELECT p.id_prestamo, u.carnet_docente_alumno, u.Nombres, u.Apellidos, p.fecha_prestamo, p.estado_general, " +
-                "(SELECT COUNT(*) FROM Detalle_Prestamo dp WHERE dp.id_prestamo = p.id_prestamo) AS total_items " +
-                "FROM Prestamo p INNER JOIN Usuarios u ON p.id_usuario = u.ID_Usuario ORDER BY p.id_prestamo DESC";
+        com.biblioteca.model.Usuario user = com.biblioteca.util.SessionManager.getInstance().getUsuarioLogueado();
+
+        // Consulta base con TODAS las columnas necesarias
+        StringBuilder sql = new StringBuilder(
+                "SELECT p.id_prestamo, u.carnet_docente_alumno, u.Nombres, u.Apellidos, p.fecha_prestamo, p.estado_general, " +
+                        "(SELECT COUNT(*) FROM Detalle_Prestamo dp WHERE dp.id_prestamo = p.id_prestamo) AS total_items " +
+                        "FROM Prestamo p INNER JOIN Usuarios u ON p.id_usuario = u.ID_Usuario"
+        );
+
+        // Si NO es administrador (rol 1), agregamos el filtro para que solo vea sus tickets
+        if (user != null && user.getTipoUsuario().getIdTipo() != 1) {
+            sql.append(" WHERE p.id_usuario = ").append(user.getIdUsuario());
+        }
+
+        sql.append(" ORDER BY p.id_prestamo DESC");
+
         try (Connection con = DatabaseConnection.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql);
+             PreparedStatement ps = con.prepareStatement(sql.toString());
              ResultSet rs = ps.executeQuery()) {
+
             while (rs.next()) {
                 lista.add(new Object[]{
                         rs.getInt("id_prestamo"),
@@ -64,7 +80,9 @@ public class PrestamoDAO {
                         rs.getString("estado_general")
                 });
             }
-        } catch (SQLException e) { e.printStackTrace(); }
+        } catch (SQLException e) {
+            System.err.println("Error crítico al cargar cabeceras: " + e.getMessage());
+        }
         return lista;
     }
     public List<Object[]> obtenerDetallesPorPrestamo(int idPrestamo) {
@@ -151,7 +169,7 @@ public class PrestamoDAO {
     /**
      * Obtiene datos extra para la devolución, ahora basado en id_detalle.
      */
-    public Object[] obtenerDatosParaDevolucion(int idDetalle) throws SQLException {
+    public Object[] obtenerDatosParaDevolucion1(int idDetalle) throws SQLException {
         String sql = "SELECT dp.id_ejemplar, dp.fecha_limite, td.valor_mora, p.id_usuario " +
                 "FROM Detalle_Prestamo dp " +
                 "INNER JOIN Prestamo p ON dp.id_prestamo = p.id_prestamo " +
@@ -170,6 +188,35 @@ public class PrestamoDAO {
                             rs.getInt("id_ejemplar"),
                             rs.getDate("fecha_limite").toLocalDate(),
                             rs.getDouble("valor_mora"),
+                            rs.getInt("id_usuario")
+                    };
+                }
+            }
+        }
+        throw new SQLException("El detalle " + idDetalle + " no existe.");
+    }
+    /**
+     * Obtiene datos extra para la devolución, ahora con tarifa dinámica por año.
+     */
+    public Object[] obtenerDatosParaDevolucion(int idDetalle) throws SQLException {
+        // Usamos COALESCE y una Subconsulta para obtener la mora del año actual.
+        // Si no existe registro para el año actual, devuelve 0.50 por defecto.
+        String sql = "SELECT dp.id_ejemplar, dp.fecha_limite, p.id_usuario, " +
+                "(SELECT COALESCE(tarifa_diaria, 0.50) FROM Mora_Anual WHERE anio = YEAR(CURDATE())) as tarifa_anual " +
+                "FROM Detalle_Prestamo dp " +
+                "INNER JOIN Prestamo p ON dp.id_prestamo = p.id_prestamo " +
+                "WHERE dp.id_detalle = ?";
+
+        try (Connection con = DatabaseConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setInt(1, idDetalle);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return new Object[]{
+                            rs.getInt("id_ejemplar"),
+                            rs.getDate("fecha_limite").toLocalDate(),
+                            rs.getDouble("tarifa_anual"), // <-- Aquí viaja la mora del año
                             rs.getInt("id_usuario")
                     };
                 }
@@ -331,21 +378,26 @@ public class PrestamoDAO {
      */
     public List<Object[]> buscarPrestamosCabeceraConFiltro(String texto, String estado) {
         List<Object[]> lista = new ArrayList<>();
+        com.biblioteca.model.Usuario user = com.biblioteca.util.SessionManager.getInstance().getUsuarioLogueado();
 
         StringBuilder sql = new StringBuilder(
                 "SELECT p.id_prestamo, u.carnet_docente_alumno, u.Nombres, u.Apellidos, p.fecha_prestamo, p.estado_general, " +
                         "(SELECT COUNT(*) FROM Detalle_Prestamo dp WHERE dp.id_prestamo = p.id_prestamo) AS total_items " +
-                        "FROM Prestamo p " +
-                        "INNER JOIN Usuarios u ON p.id_usuario = u.ID_Usuario " +
+                        "FROM Prestamo p INNER JOIN Usuarios u ON p.id_usuario = u.ID_Usuario " +
                         "WHERE 1=1"
         );
 
-        // 1. Aplicar filtro de estado si no es "Todos"
+        // Filtro de seguridad obligatorio: Si no es admin, solo busca entre sus propios préstamos
+        if (user != null && user.getTipoUsuario().getIdTipo() != 1) {
+            sql.append(" AND p.id_usuario = ").append(user.getIdUsuario());
+        }
+
+        // Filtro del ComboBox (Estado)
         if (estado != null && !estado.equals("Todos")) {
             sql.append(" AND p.estado_general = ?");
         }
 
-        // 2. Aplicar filtro de texto (Carnet, Nombres o Apellidos)
+        // Filtro de la caja de texto (Carnet o Nombre)
         if (texto != null && !texto.trim().isEmpty()) {
             sql.append(" AND (u.carnet_docente_alumno LIKE ? OR u.Nombres LIKE ? OR u.Apellidos LIKE ?)");
         }
@@ -355,7 +407,7 @@ public class PrestamoDAO {
         try (Connection con = DatabaseConnection.getConnection();
              PreparedStatement ps = con.prepareStatement(sql.toString())) {
 
-            int paramIndex = 1; // Índice dinámico para los parámetros preparados
+            int paramIndex = 1;
 
             if (estado != null && !estado.equals("Todos")) {
                 ps.setString(paramIndex++, estado);

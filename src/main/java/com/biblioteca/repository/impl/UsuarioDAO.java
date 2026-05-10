@@ -198,27 +198,27 @@ public class UsuarioDAO {
 
             ps.setInt(1, idUsuario);
 
-            ResultSet rs = ps.executeQuery();
+            // CORRECCIÓN: Envolver el ResultSet en un try-with-resources anidado
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    Usuario u = new Usuario();
 
-            if (rs.next()) {
+                    u.setIdUsuario(rs.getInt("ID_Usuario"));
+                    u.setNombres(rs.getString("nombres"));
+                    u.setApellidos(rs.getString("apellidos"));
+                    u.setCarnet(rs.getString("carnet_docente_alumno"));
+                    u.setEstado(rs.getString("estado"));
 
-                Usuario u = new Usuario();
+                    TipoUsuario tipo = new TipoUsuario();
+                    tipo.setIdTipo(rs.getInt("id_tipo"));
+                    tipo.setNombreRol(rs.getString("nombre_rol"));
 
-                u.setIdUsuario(rs.getInt("ID_Usuario"));
-                u.setNombres(rs.getString("nombres"));
-                u.setApellidos(rs.getString("apellidos"));
-                u.setCarnet(rs.getString("carnet_docente_alumno"));
-                u.setEstado(rs.getString("estado"));
+                    u.setTipoUsuario(tipo);
 
-                TipoUsuario tipo = new TipoUsuario();
-                tipo.setIdTipo(rs.getInt("id_tipo"));
-                tipo.setNombreRol(rs.getString("nombre_rol"));
-
-                u.setTipoUsuario(tipo);
-
-                return u;
+                    return u;
+                }
             }
-
+            // Si el ResultSet termina y no encontró nada, lanza la excepción
             throw new Exception("Usuario no encontrado.");
         }
     }

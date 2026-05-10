@@ -50,6 +50,12 @@ public class DialogDetallePrestamo extends JDialog {
         panelSur.add(btnCobrar);
         panelSur.add(btnDevolver);
         mainPanel.add(panelSur, BorderLayout.SOUTH);
+
+        com.biblioteca.model.Usuario user = com.biblioteca.util.SessionManager.getInstance().getUsuarioLogueado();
+        if (user != null && user.getTipoUsuario().getIdTipo() != 1) {
+            // Si NO es Administrador, ocultamos todo el panel de botones de abajo
+            panelSur.setVisible(false);
+        }
         add(mainPanel);
 
         cargarDetalles();

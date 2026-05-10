@@ -24,6 +24,8 @@ public class PanelPrestamos extends JPanel {
 
     public PanelPrestamos() {
         this.prestamoService = new PrestamoService();
+        com.biblioteca.model.Usuario user = com.biblioteca.util.SessionManager.getInstance().getUsuarioLogueado();
+        int rol = user.getTipoUsuario().getIdTipo();
 
         setLayout(new BorderLayout(10, 10));
         setBackground(Color.WHITE);
@@ -90,6 +92,16 @@ public class PanelPrestamos extends JPanel {
 
         cargarPrestamosDesdeBD();
         configurarEventos();
+
+
+        if (user != null && user.getTipoUsuario().getIdTipo() != 1) {
+            // Si NO es Administrador, apagamos los botones administrativos
+            btnEditarLector.setVisible(false);  // <--- ESTA LÍNEA OCULTA "CAMBIAR LECTOR"
+            btnNuevoPrestamo.setVisible(false); // <--- ESTA LÍNEA OCULTA "NUEVO PRÉSTAMO"
+
+            // Ocultamos la barra de búsqueda completa
+            panelBusqueda.setVisible(false);
+        }
     }
 
     private JButton crearBoton(String texto, Color colorFondo) {
